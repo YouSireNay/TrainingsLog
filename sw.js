@@ -1,6 +1,6 @@
 /* Training Log service worker: keeps the app available offline.
    After changing index.html, bump VERSION so installed apps pick up the new version. */
-const VERSION = 'v1';
+const VERSION = 'v2';
 const CACHE = 'traininglog-en-' + VERSION;
 const FONTS = 'traininglog-fonts';
 const SHELL = [
