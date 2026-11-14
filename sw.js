@@ -1,6 +1,6 @@
 /* Trainingslog Service Worker: hält die App offline verfügbar.
    Nach einer Änderung an index.html die Versionsnummer erhöhen, damit Handys die neue Version laden. */
-const VERSION = 'v2';
+const VERSION = 'v4';
 const CACHE = 'trainingslog-' + VERSION;
 const FONTS = 'trainingslog-fonts';
 const SHELL = [
