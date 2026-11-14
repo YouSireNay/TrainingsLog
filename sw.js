@@ -1,6 +1,7 @@
 /* Training Log service worker: keeps the app available offline.
-   After changing index.html, bump VERSION so installed apps pick up the new version. */
-const VERSION = 'v2';
+   When online it always loads the newest index.html, offline it uses the saved copy.
+   After changing index.html, bump VERSION. */
+const VERSION = 'v5';
 const CACHE = 'traininglog-en-' + VERSION;
 const FONTS = 'traininglog-fonts';
 const SHELL = [
@@ -14,7 +15,8 @@ const SHELL = [
 ];
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  // cache: 'reload' skips the browser cache so the new files are really stored
+  event.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL.map(u => new Request(u, {cache: 'reload'})))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', event => {
@@ -25,22 +27,32 @@ self.addEventListener('activate', event => {
   );
 });
 
+async function networkFirst(req) {
+  const cache = await caches.open(CACHE);
+  const net = fetch(req.url, {cache: 'no-cache'}).then(res => { if (res && res.ok) cache.put(req, res.clone()); return res; });
+  try {
+    const res = await Promise.race([net, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 3000))]);
+    if (res && res.ok) return res;
+  } catch (e) {}
+  const hit = (await cache.match(req, {ignoreSearch: true})) || (await cache.match('./index.html')) || (await cache.match('./'));
+  return hit || net;
+}
+
+async function staleWhileRevalidate(req) {
+  const cache = await caches.open(CACHE);
+  const hit = await cache.match(req, {ignoreSearch: true});
+  const fresh = fetch(req.url, {cache: 'no-cache'}).then(res => { if (res && res.ok) cache.put(req, res.clone()); return res; }).catch(() => hit);
+  return hit || fresh;
+}
+
 self.addEventListener('fetch', event => {
   const req = event.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
 
   if (url.origin === self.location.origin) {
-    // Answer from the cache right away and refresh it in the background
-    event.respondWith(caches.open(CACHE).then(async cache => {
-      let hit = await cache.match(req, {ignoreSearch: true});
-      if (!hit && req.mode === 'navigate') hit = await cache.match('./index.html');
-      const fresh = fetch(req).then(res => {
-        if (res && res.ok) cache.put(req, res.clone());
-        return res;
-      }).catch(() => hit);
-      return hit || fresh;
-    }));
+    const isPage = req.mode === 'navigate' || url.pathname.endsWith('/') || url.pathname.endsWith('.html');
+    event.respondWith(isPage ? networkFirst(req) : staleWhileRevalidate(req));
     return;
   }
 
