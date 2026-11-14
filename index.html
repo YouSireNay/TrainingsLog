@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Training Log</title>
+<title>Trainingslog</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -11,13 +11,13 @@
 <meta name="theme-color" content="#192025" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Training Log">
+<meta name="apple-mobile-web-app-title" content="Trainingslog">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
-  /* Layout: one column up to 760px, tabs on top; Exercises and History with a category sidebar on the left */
+  /* Layout: eine Spalte bis 760px, oben Tabs; Übungen und Verlauf mit Kategorie-Seitenleiste links */
   --bg:#eef1f4; --surface:#ffffff; --surface-2:#e5eaef; --ink:#13202a; --muted:#566573; --line:#d2dae1;
   --accent:#1b74b8; --accent-ink:#ffffff; --accent-soft:#dbe9f5;
   --pr:#8f5c0e; --pr-soft:#f6e6c8; --danger:#b3361f; --danger-soft:#f7e0da; --ok:#2a8a52;
@@ -153,6 +153,7 @@ main{max-width:760px;margin:0 auto;padding:16px 16px 96px;display:flex;flex-dire
 .chips,.seg{display:flex;flex-wrap:wrap;gap:6px}
 .chips button,.seg button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:.88rem;font-weight:600;color:var(--muted)}
 .chips button.on,.seg button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.chips button.nohist{border-style:dashed}
 
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
 .tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px}
@@ -241,13 +242,13 @@ details.panel .list{margin-top:10px}
 </head>
 <body>
 <header class="top">
-  <div class="bar"><div class="brand">Training <span>log</span></div><div class="bar-r"><a id="wchip" class="wchip" href="#weight" aria-label="Body weight"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M7.5 10a6 6 0 0 1 9 0"/><path d="M12 10.5l1.8-2.2"/></svg><span id="wchip-t">Weight</span></a><div id="sync" class="sync">Connecting …</div></div></div>
-  <nav class="tabs" aria-label="Sections">
-    <a href="#workout">Workout</a>
-    <a href="#history">History</a>
-    <a href="#exercises">Exercises</a>
-    <a href="#templates">Templates</a>
-    <a href="#data">Data</a>
+  <div class="bar"><div class="brand">Trainings<span>log</span></div><div class="bar-r"><a id="wchip" class="wchip" href="#gewicht" aria-label="Körpergewicht"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M7.5 10a6 6 0 0 1 9 0"/><path d="M12 10.5l1.8-2.2"/></svg><span id="wchip-t">Gewicht</span></a><div id="sync" class="sync">Verbinde …</div></div></div>
+  <nav class="tabs" aria-label="Bereiche">
+    <a href="#training">Training</a>
+    <a href="#verlauf">Verlauf</a>
+    <a href="#uebungen">Übungen</a>
+    <a href="#vorlagen">Vorlagen</a>
+    <a href="#daten">Daten</a>
   </nav>
 </header>
 <main id="view"></main>
@@ -256,12 +257,11 @@ details.panel .list{margin-top:10px}
 
 <script>
 'use strict';
-/* Standalone offline version: stores data on this device only (localStorage). */
+/* Eigenständige Offline-Version: speichert nur auf diesem Gerät (localStorage). */
 const STANDALONE = true;
-const LOCALE = 'en-GB';
 if (STANDALONE && 'serviceWorker' in navigator) window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}); });
 try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
-/* ---------- Helpers ---------- */
+/* ---------- Helfer ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const clone = o => JSON.parse(JSON.stringify(o));
@@ -273,25 +273,24 @@ const parseDs = s => { const [y, m, d] = s.split('-').map(Number); return new Da
 const today = () => ds(new Date());
 const addDays = (s, n) => { const d = parseDs(s); d.setDate(d.getDate() + n); return ds(d); };
 const daysBetween = (a, b) => Math.round((parseDs(b) - parseDs(a)) / 864e5);
-const fmtLong = s => parseDs(s).toLocaleDateString(LOCALE, {weekday:'long', day:'numeric', month:'long'});
-const fmtShort = s => parseDs(s).toLocaleDateString(LOCALE, {weekday:'short', day:'numeric', month:'short'});
-const fmtTile = s => parseDs(s).toLocaleDateString(LOCALE, parseDs(s).getFullYear() === new Date().getFullYear() ? {weekday:'short', day:'numeric', month:'short'} : {day:'numeric', month:'short', year:'numeric'});
-const fmtTbl = s => parseDs(s).toLocaleDateString(LOCALE, {day:'2-digit', month:'2-digit', year:'2-digit'});
-const num = (n, d = 2) => (Math.round(n * 10 ** d) / 10 ** d).toLocaleString(LOCALE, {maximumFractionDigits:d});
-const fmtIn = n => (Math.round(n * 100) / 100).toLocaleString(LOCALE, {maximumFractionDigits:2, useGrouping:false});
+const fmtLong = s => parseDs(s).toLocaleDateString('de-DE', {weekday:'long', day:'numeric', month:'long'});
+const fmtShort = s => parseDs(s).toLocaleDateString('de-DE', {weekday:'short', day:'numeric', month:'short'});
+const fmtTile = s => parseDs(s).toLocaleDateString('de-DE', parseDs(s).getFullYear() === new Date().getFullYear() ? {weekday:'short', day:'numeric', month:'short'} : {day:'numeric', month:'short', year:'numeric'});
+const fmtTbl = s => parseDs(s).toLocaleDateString('de-DE', {day:'2-digit', month:'2-digit', year:'2-digit'});
+const num = (n, d = 2) => (Math.round(n * 10 ** d) / 10 ** d).toLocaleString('de-DE', {maximumFractionDigits:d});
+const fmtIn = n => (Math.round(n * 100) / 100).toLocaleString('de-DE', {maximumFractionDigits:2, useGrouping:false});
 const parseNum = v => { const n = parseFloat(String(v ?? '').trim().replace(',', '.')); return isFinite(n) ? n : NaN; };
 const r2 = n => Math.round(n * 1000) / 1000;
 const e1rm = (w, r) => r <= 0 ? 0 : (r === 1 ? w : w * (1 + r / 30));
-const byName = (a, b) => a.name.localeCompare(b.name, 'en');
-const low = s => String(s || '').trim().toLowerCase();
-const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many);
+const byName = (a, b) => a.name.localeCompare(b.name, 'de');
 const CHART_ICON = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16"/><path d="M5 15l4-5 4 3 6-7"/><circle cx="19" cy="6" r="1.2" fill="currentColor"/></svg>';
+const low = s => String(s || '').trim().toLowerCase();
 
-/* ---------- State ---------- */
+/* ---------- Zustand ---------- */
 const EMPTY_CFG = () => ({v:1, categories:[], exercises:[], templates:[], rotation:[]});
 const S = {
-  cfg: EMPTY_CFG(), days: {}, view: 'workout', date: today(),
-  catSel: {exercises:'__all', history:'__all'}, histEx: null, metric: 'e1rm',
+  cfg: EMPTY_CFG(), days: {}, view: 'training', date: today(),
+  catSel: {uebungen:'__all', verlauf:'__all'}, histEx: null, metric: 'e1rm',
   drafts: {}, errs: {}, tplEdit: null, picker: null, exEdit: null,
   cfgConfirmed: false, netNote: null, skipOnboard: false, busy: false
 };
@@ -302,7 +301,7 @@ function normCfg(c) {
     v: 1,
     categories: arr(c.categories).filter(x => x && x.id && x.name),
     exercises: arr(c.exercises).filter(x => x && x.id && x.name).map(x => ({id:x.id, name:String(x.name), catId:x.catId || null, step:+x.step > 0 ? +x.step : 2.5, repStep:+x.repStep >= 1 ? Math.round(+x.repStep) : 1, aliases:arr(x.aliases), archived:!!x.archived})),
-    templates: arr(c.templates).filter(x => x && x.id).map(t => ({id:t.id, name:String(t.name || 'Template'), items:arr(t.items).filter(i => i && i.exId).map(i => ({exId:i.exId, sets:Math.max(1, Math.min(20, +i.sets || 2))}))})),
+    templates: arr(c.templates).filter(x => x && x.id).map(t => ({id:t.id, name:String(t.name || 'Vorlage'), items:arr(t.items).filter(i => i && i.exId).map(i => ({exId:i.exId, sets:Math.max(1, Math.min(20, +i.sets || 2))}))})),
     rotation: arr(c.rotation).filter(x => x && (x.type === 'rest' || x.tplId)).map(x => x.type === 'rest' ? {type:'rest'} : {type:'t', tplId:x.tplId})
   };
 }
@@ -318,19 +317,19 @@ function normDay(d, date) {
 }
 const exById = id => S.cfg.exercises.find(e => e.id === id);
 const catById = id => S.cfg.categories.find(c => c.id === id);
-const catName = id => (catById(id) || {}).name || 'Uncategorised';
+const catName = id => (catById(id) || {}).name || 'Ohne Kategorie';
 const tplById = id => S.cfg.templates.find(t => t.id === id);
-const tplName = id => (tplById(id) || {}).name || 'Deleted template';
+const tplName = id => (tplById(id) || {}).name || 'Gelöschte Vorlage';
 const hasContent = c => c.exercises.length > 0 || c.templates.length > 0;
 const isEmptyDay = d => !d || (!d.tplId && !d.entries.length);
 const ensureDay = date => S.days[date] || (S.days[date] = {date, tplId:null, rotIdx:null, entries:[]});
 const sortedDays = () => Object.values(S.days).sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
 
-/* ---------- Storage: localStorage on this device ---------- */
+/* ---------- Speicher: claude db (privat pro Person), sonst localStorage ---------- */
 const LS_KEY = 'trainingslog.v1';
 const Store = {
-  mode: 'loading', ver: {}, done: {}, err: false,
-  cacheLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify({src:'local', cfg:S.cfg, days:S.days, weights:S.weights})); this.err = false; } catch (e) { this.err = true; } },
+  mode: 'loading', cfgRef: null, daysCol: null, ver: {}, done: {}, timers: {}, chains: {}, err: false,
+  cacheLocal() { try { localStorage.setItem(LS_KEY, JSON.stringify({src:this.mode, cfg:S.cfg, days:S.days, weights:S.weights})); } catch (e) {} },
   loadLocal() {
     try {
       const raw = localStorage.getItem(LS_KEY); if (!raw) return null;
@@ -339,30 +338,112 @@ const Store = {
       return o.src || 'local';
     } catch (e) { return null; }
   },
-  dirty() { return false; },
-  anyDirty() { return false; },
-  schedule() { this.cacheLocal(); setSync(); },
-  init() { this.loadLocal(); this.mode = 'local'; S.cfgConfirmed = true; this.cacheLocal(); render(); }
+  dirty(key) { return this.timers[key] != null || (this.ver[key] || 0) !== (this.done[key] || 0); },
+  anyDirty() { return Object.keys(this.ver).some(k => this.dirty(k)); },
+  async run(writer) {
+    try { await writer(); }
+    catch (e) {
+      const c = e && e.code;
+      if (c === 'unavailable' || c === 'resource_exhausted') { await sleep((c === 'unavailable' ? 700 : 1800) + Math.random() * 600); await writer(); }
+      else throw e;
+    }
+  },
+  schedule(key, writer) {
+    this.ver[key] = (this.ver[key] || 0) + 1; const v = this.ver[key];
+    this.cacheLocal();
+    if (this.mode !== 'db') { this.done[key] = v; setSync(); return; }
+    clearTimeout(this.timers[key]);
+    this.timers[key] = setTimeout(() => {
+      this.timers[key] = null;
+      this.chains[key] = (this.chains[key] || Promise.resolve())
+        .then(() => this.run(writer))
+        .then(() => { this.done[key] = Math.max(this.done[key] || 0, v); this.err = false; setSync(); },
+              e => { this.done[key] = Math.max(this.done[key] || 0, v); onWriteError(e); setSync(); });
+    }, 450);
+    setSync();
+  },
+  async writeNow(key, writer) {
+    clearTimeout(this.timers[key]); this.timers[key] = null;
+    this.ver[key] = (this.ver[key] || 0) + 1; const v = this.ver[key];
+    const p = (this.chains[key] || Promise.resolve()).catch(() => {}).then(() => this.run(writer));
+    this.chains[key] = p;
+    try { await p; this.err = false; } finally { this.done[key] = Math.max(this.done[key] || 0, v); setSync(); }
+  },
+  async init() {
+    const src = this.loadLocal();
+    if (STANDALONE) { this.mode = 'local'; S.cfgConfirmed = true; this.cacheLocal(); render(); return; }
+    render();
+    let db = null, user = null, uid = null;
+    try { if (window.claude && typeof claude.use === 'function') [db, user] = await Promise.all([claude.use('db'), claude.use('user')]); } catch (e) {}
+    try { uid = user ? await user.id() : null; } catch (e) {}
+    if (!db || !uid) { this.mode = 'local'; S.cfgConfirmed = true; this.cacheLocal(); render(); return; }
+    this.mode = 'db';
+    try {
+      this.cfgRef = db.doc('data/users/' + uid + '/config');
+      this.daysCol = this.cfgRef.collection('days');
+    } catch (e) { this.mode = 'local'; S.cfgConfirmed = true; render(); return; }
+    const uploadLocal = src === 'local';
+    const timer = setTimeout(() => { if (!S.cfgConfirmed) { S.netNote = 'Deine Daten sind gerade nicht erreichbar. Was du einträgst, bleibt in diesem Browser und wird gespeichert, sobald die Verbindung steht.'; rerender(); } }, 10000);
+    this.cfgRef.onSnapshot(snap => {
+      if (!snap.metadata.fromCache) { S.cfgConfirmed = true; clearTimeout(timer); S.netNote = null; }
+      if (snap.exists) { if (!this.dirty('cfg')) S.cfg = normCfg(clone(snap.data())); }
+      else if (!snap.metadata.fromCache && uploadLocal && hasContent(S.cfg)) saveCfg();
+      this.cacheLocal(); rerender();
+    }, e => { clearTimeout(timer); S.cfgConfirmed = true; S.netNote = 'Die Verbindung zu deinem Speicher ist unterbrochen. Änderungen bleiben vorerst in diesem Browser.'; rerender(); });
+    let firstDays = true;
+    this.daysCol.onSnapshot(qs => {
+      const seen = new Set();
+      qs.docs.forEach(d => { seen.add(d.id); if (!this.dirty('day:' + d.id)) { const nd = normDay(clone(d.data()), d.id); if (isEmptyDay(nd)) delete S.days[d.id]; else S.days[d.id] = nd; } });
+      if (!qs.metadata.fromCache) {
+        for (const k of Object.keys(S.days)) {
+          if (seen.has(k) || this.dirty('day:' + k)) continue;
+          if (firstDays && uploadLocal) saveDay(k); else delete S.days[k];
+        }
+        firstDays = false;
+      }
+      this.cacheLocal(); rerender();
+    }, e => { S.netNote = 'Die Verbindung zu deinem Speicher ist unterbrochen. Änderungen bleiben vorerst in diesem Browser.'; rerender(); });
+    render();
+  }
 };
-function saveCfg() { Store.schedule(); }
-function saveDay(date) { if (isEmptyDay(S.days[date])) delete S.days[date]; Store.schedule(); }
+function saveCfg() { Store.schedule('cfg', () => Store.cfgRef.set(clone(S.cfg))); }
+function saveDay(date) {
+  if (isEmptyDay(S.days[date])) delete S.days[date];
+  Store.schedule('day:' + date, () => { const d = S.days[date]; return isEmptyDay(d) ? Store.daysCol.doc(date).delete() : Store.daysCol.doc(date).set(clone(d)); });
+}
 async function writeDaysNow(dates, onProg) {
   for (const d of dates) if (isEmptyDay(S.days[d])) delete S.days[d];
   Store.cacheLocal();
-  if (onProg) onProg(dates.length, dates.length);
-  setSync();
+  if (Store.mode !== 'db') return;
+  let k = 0;
+  for (const d of dates) {
+    await Store.writeNow('day:' + d, () => { const day = S.days[d]; return isEmptyDay(day) ? Store.daysCol.doc(d).delete() : Store.daysCol.doc(d).set(clone(day)); });
+    k++; if (onProg) onProg(k, dates.length);
+    await sleep(25);
+  }
 }
-function onWriteError() { toast('Saving failed. Your browser storage may be full or blocked.'); }
+function onWriteError(e) {
+  Store.err = true;
+  const c = e && e.code;
+  if (c === 'quota_exceeded') toast('Dein Speicher ist voll. Lösche alte Trainings oder Übungen, dann klappt es wieder.');
+  else if (c === 'invalid_argument') toast('Speichern wurde abgelehnt. In dieser Ansicht kannst du nichts ändern.');
+  else toast('Speichern hat nicht geklappt. Deine Änderung bleibt in diesem Browser.');
+}
 function setSync() {
   const el = $('#sync'); if (!el) return;
-  let cls = 'ok', txt = navigator.onLine ? 'On this device' : 'Offline · saved';
-  if (Store.mode === 'loading') { cls = ''; txt = 'Loading …'; }
-  else if (Store.err) { cls = 'err'; txt = 'Not saved'; }
-  else if (!navigator.onLine) cls = 'saving';
+  let cls = '', txt = 'Verbinde …';
+  if (Store.mode === 'local' && STANDALONE) { cls = navigator.onLine ? 'ok' : 'saving'; txt = navigator.onLine ? 'Auf diesem Gerät' : 'Offline · gespeichert'; }
+  else if (Store.mode === 'local') { cls = 'warn'; txt = 'Nur in diesem Browser'; }
+  else if (Store.mode === 'db') {
+    if (Store.err) { cls = 'err'; txt = 'Nicht gespeichert'; }
+    else if (Store.anyDirty()) { cls = 'saving'; txt = 'Speichert …'; }
+    else if (!S.cfgConfirmed) { txt = 'Lädt …'; }
+    else { cls = 'ok'; txt = 'Gespeichert'; }
+  }
   el.className = 'sync ' + cls; el.innerHTML = '<span class="t">' + esc(txt) + '</span>'; el.title = txt; el.setAttribute('aria-label', txt);
 }
 
-/* ---------- Stats ---------- */
+/* ---------- Auswertungen ---------- */
 function sessions(exId, beforeDate) {
   const out = [];
   for (const d of Object.values(S.days)) {
@@ -378,13 +459,13 @@ function sessions(exId, beforeDate) {
 const lastSession = (exId, date) => sessions(exId, date)[0] || null;
 const bestBefore = (exId, date) => sessions(exId, date).reduce((m, s) => Math.max(m, s.e1rm), 0);
 const METRICS = {
-  e1rm: {label:'Est. 1RM', unit:'kg', dec:1, get:s => s.e1rm},
-  maxw: {label:'Max weight', unit:'kg', dec:2, get:s => s.maxW},
-  vol:  {label:'Volume', unit:'kg', dec:0, get:s => s.vol},
-  reps: {label:'Max reps', unit:'reps', dec:0, get:s => s.maxR}
+  e1rm: {label:'Gesch. 1RM', unit:'kg', dec:1, get:s => s.e1rm},
+  maxw: {label:'Max. Gewicht', unit:'kg', dec:2, get:s => s.maxW},
+  vol:  {label:'Volumen', unit:'kg', dec:0, get:s => s.vol},
+  reps: {label:'Max. Wdh.', unit:'Wdh.', dec:0, get:s => s.maxR}
 };
 
-/* ---------- Rotation ---------- */
+/* ---------- Rhythmus ---------- */
 function rotIndexForDay(d) {
   const rot = S.cfg.rotation, len = rot.length; if (!len) return -1;
   if (Number.isInteger(d.rotIdx) && d.rotIdx >= 0 && d.rotIdx < len) {
@@ -431,80 +512,88 @@ function startTemplate(date, tplId, rotIdx) {
   day.entries.sort((a, b) => { const ia = order.indexOf(a.exId), ib = order.indexOf(b.exId); return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib); });
   day.tplId = tplId; day.rotIdx = rotIdx;
   saveDay(date); render();
-  if (!t.items.length) toast('The template "' + t.name + '" is still empty. Add exercises, then copy them into the template.');
+  if (!t.items.length) toast('Die Vorlage „' + t.name + '“ ist noch leer. Füge Übungen hinzu und übernimm sie danach in die Vorlage.');
 }
 
 /* ---------- Rendering ---------- */
-function rerender() { render(); }
+let pendingRender = false;
+function rerender() {
+  const a = document.activeElement;
+  if (a && a.closest && a.closest('#view') && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) { pendingRender = true; return; }
+  render();
+}
+document.addEventListener('focusout', () => { if (pendingRender) setTimeout(() => { if (pendingRender) rerender(); }, 0); });
 
 function render() {
+  pendingRender = false;
   document.querySelectorAll('.tabs a').forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + S.view));
   let h = S.netNote ? `<div class="note">${esc(S.netNote)}</div>` : '';
-  if (S.view === 'workout') h += renderWorkout();
-  else if (S.view === 'history') h += renderHistory();
-  else if (S.view === 'exercises') h += renderExercises();
-  else if (S.view === 'templates') h += renderTemplates();
+  if (S.view === 'training') h += renderTraining();
+  else if (S.view === 'verlauf') h += renderHistory();
+  else if (S.view === 'uebungen') h += renderExercises();
+  else if (S.view === 'vorlagen') h += renderTemplates();
   else if (S.view === WEIGHT_VIEW) h += renderWeight();
   else h += renderData();
   $('#view').innerHTML = h;
   updateWeightChip();
   if (S.view === WEIGHT_VIEW) drawWeightChart();
-  if (S.view === 'history') drawChart();
+  if (S.view === 'verlauf') drawChart();
   setSync();
 }
 
-/* Workout */
-function renderWorkout() {
-  if (!hasContent(S.cfg) && !S.cfgConfirmed) return `<p class="empty">Loading your data …</p>`;
+/* Training */
+function renderTraining() {
+  const loading = !hasContent(S.cfg) && !S.cfgConfirmed;
+  if (loading) return `<p class="empty">Lade deine Daten …</p>`;
   if (!hasContent(S.cfg) && !S.skipOnboard) return onboardHtml();
   const date = S.date, day = S.days[date], diff = daysBetween(date, today());
-  const sub = diff === 0 ? 'Today' : (diff > 0 ? `${plural(diff, 'day', 'days')} ago · back to today` : `in ${plural(-diff, 'day', 'days')} · back to today`);
+  const sub = diff === 0 ? 'Heute' : (diff > 0 ? `vor ${diff} Tag${diff > 1 ? 'en' : ''} · zurück zu heute` : `in ${-diff} Tag${diff < -1 ? 'en' : ''} · zurück zu heute`);
   let h = `<div class="daynav">
-    <button class="icon" data-act="day-prev" aria-label="Previous day">‹</button>
+    <button class="icon" data-act="day-prev" aria-label="Vorheriger Tag">‹</button>
     <button class="dtitle" data-act="day-today"><span class="d">${esc(fmtLong(date))}</span><span class="sub">${sub}</span></button>
-    <button class="icon" data-act="day-next" aria-label="Next day">›</button></div>`;
+    <button class="icon" data-act="day-next" aria-label="Nächster Tag">›</button></div>`;
   h += planHtml(date, day);
   if (day && day.entries.length) h += day.entries.map(e => cardHtml(date, e)).join('');
-  else h += `<p class="empty">Nothing logged for this day yet.</p>`;
-  h += `<button class="add-ex" data-act="add-ex">+ Add exercise</button>`;
+  else h += `<p class="empty">Für diesen Tag ist noch nichts eingetragen.</p>`;
+  h += `<button class="add-ex" data-act="add-ex">+ Übung hinzufügen</button>`;
   if (day && day.tplId && tplById(day.tplId)) {
     const t = tplById(day.tplId), a = day.entries.map(e => e.exId).join('|'), b = t.items.map(i => i.exId).join('|');
-    if (day.entries.length && a !== b) h += `<button class="sync-tpl" data-act="sync-tpl">Copy this day's exercises into the template "${esc(t.name)}"</button>`;
+    if (day.entries.length && a !== b) h += `<button class="sync-tpl" data-act="sync-tpl">Übungen dieses Tages in die Vorlage „${esc(t.name)}“ übernehmen</button>`;
   }
   return h;
 }
 function onboardHtml() {
-  return `<div class="onboard"><h2 class="h">Your training log</h2>
-  <p class="hint">The starter pack gives you everything you had in FitNotes right away, plus templates and your rotation:</p>
-  <ul><li>23 exercises, sorted into categories, each with its own weight step</li>
-  <li>Templates Pull, Push, Legs, Upper, Lower and "Push (shoulder-friendly)"</li>
-  <li>Rotation Pull – Push – Legs – Rest – Upper – Lower</li>
-  <li>Your workouts from 6 to 11 November from the screenshots</li></ul>
-  <div class="row-btns"><button class="primary" data-act="seed" data-hist="1">Load starter pack</button><button class="ghost" data-act="skip-onboard">Start empty</button></div>
-  <p class="hint">Under "Data" you can also import your full FitNotes history as a CSV later.</p></div>`;
+  return `<div class="onboard"><h2 class="h">Dein Trainingslog</h2>
+  <p class="hint">Mit dem Startpaket hast du sofort alles, was du in FitNotes hattest, plus Vorlagen und deinen Rhythmus:</p>
+  <ul><li>23 Übungen, nach Kategorien sortiert und jeweils mit eigenem Gewichtsschritt</li>
+  <li>Vorlagen Pull, Push, Legs, Upper, Lower und „Push (Schulter schonen)“</li>
+  <li>Rhythmus Pull – Push – Legs – Ruhetag – Upper – Lower</li>
+  <li>Deine Trainings vom 6. bis 11. November aus den Screenshots</li></ul>
+  <div class="row-btns"><button class="primary" data-act="seed" data-hist="1">Startpaket laden</button><button class="ghost" data-act="skip-onboard">Leer starten</button></div>
+  <p class="hint">Später kannst du unter „Daten“ auch deinen kompletten FitNotes-Verlauf als CSV importieren.</p></div>`;
 }
 function planHtml(date, day) {
   const tpls = S.cfg.templates;
   if (day && day.tplId) {
-    return `<div class="plan"><div class="lbl"><small>Template</small><strong>${esc(tplName(day.tplId))}</strong></div><button class="ghost sm" data-act="pick-tpl">Change</button></div>`;
+    return `<div class="plan"><div class="lbl"><small>Vorlage</small><strong>${esc(tplName(day.tplId))}</strong></div><button class="ghost sm" data-act="pick-tpl">Wechseln</button></div>`;
   }
   const sg = suggest(date);
   let h = '<div class="plan">';
   if (sg) {
     if (sg.item.type === 'rest') {
       const nx = nextNonRest(sg.idx);
-      h += `<div class="lbl"><small>Up next in rotation</small><strong>Rest day</strong></div>`;
-      if (nx) h += `<button class="ghost sm" data-act="start-tpl" data-tpl="${esc(nx.item.tplId)}" data-rot="${nx.idx}">Do ${esc(tplName(nx.item.tplId))} anyway</button>`;
+      h += `<div class="lbl"><small>Laut Rhythmus</small><strong>Ruhetag</strong></div>`;
+      if (nx) h += `<button class="ghost sm" data-act="start-tpl" data-tpl="${esc(nx.item.tplId)}" data-rot="${nx.idx}">Trotzdem ${esc(tplName(nx.item.tplId))}</button>`;
     } else {
-      h += `<div class="lbl"><small>Up next in rotation</small><strong>${esc(tplName(sg.item.tplId))}</strong></div>`;
-      h += `<button class="primary sm" data-act="start-tpl" data-tpl="${esc(sg.item.tplId)}" data-rot="${sg.idx}">Start</button>`;
+      h += `<div class="lbl"><small>Laut Rhythmus</small><strong>${esc(tplName(sg.item.tplId))}</strong></div>`;
+      h += `<button class="primary sm" data-act="start-tpl" data-tpl="${esc(sg.item.tplId)}" data-rot="${sg.idx}">Starten</button>`;
     }
   } else if (tpls.length) {
-    h += `<div class="lbl"><small>No rotation</small><a href="#templates">Set up rotation</a></div>`;
+    h += `<div class="lbl"><small>Kein Rhythmus</small><a href="#vorlagen">Rhythmus festlegen</a></div>`;
   } else {
-    h += `<div class="lbl"><small>No templates</small><a href="#templates">Create a template</a></div>`;
+    h += `<div class="lbl"><small>Keine Vorlagen</small><a href="#vorlagen">Vorlage anlegen</a></div>`;
   }
-  if (tpls.length) h += `<button class="ghost sm" data-act="pick-tpl">Other template</button>`;
+  if (tpls.length) h += `<button class="ghost sm" data-act="pick-tpl">Andere Vorlage</button>`;
   return h + '</div>';
 }
 function draftFor(date, e) {
@@ -521,78 +610,79 @@ function cardHtml(date, e) {
   const setsHtml = e.sets.map((s, j) => {
     const v = e1rm(s.w, s.r), pr = best > 0 && v > running + 1e-9;
     if (v > running) running = v;
-    return `<li class="set${dr.edit === j ? ' sel' : ''}" data-act="edit-set" data-i="${j}"><span class="n">${j + 1}</span>${pr ? '<span class="pr" title="New estimated 1RM record">PR</span>' : ''}<span class="sw"><b>${num(s.w)}</b> kg</span><span class="sr"><b>${s.r}</b> reps</span></li>`;
+    return `<li class="set${dr.edit === j ? ' sel' : ''}" data-act="edit-set" data-i="${j}"><span class="n">${j + 1}</span>${pr ? '<span class="pr" title="Neuer Rekord beim geschätzten 1RM">PR</span>' : ''}<span class="sw"><b>${num(s.w)}</b> kg</span><span class="sr"><b>${s.r}</b> Wdh.</span></li>`;
   }).join('');
-  const tgt = e.target ? `<span class="badge${e.sets.length >= e.target ? ' done' : ''}">${e.sets.length}/${e.target} sets</span>` : '';
+  const tgt = e.target ? `<span class="badge${e.sets.length >= e.target ? ' done' : ''}">${e.sets.length}/${e.target} Sätze</span>` : '';
   const editing = dr.edit != null;
   return `<article class="card" data-ex="${esc(e.exId)}">
-    <div class="card-h"><h3>${esc(ex ? ex.name : 'Deleted exercise')}<small>${esc(ex ? catName(ex.catId) : '')}</small></h3>${tgt}${ex ? `<button class="x hb" data-act="go-hist" data-ex="${esc(e.exId)}" data-from="workout" aria-label="Show history graph for ${esc(ex.name)}" title="History">${CHART_ICON}</button>` : ''}<button class="x" data-act="rm-entry" aria-label="Remove exercise from this day">×</button></div>
-    ${last ? `<div class="last">Last time, ${esc(fmtShort(last.date))}: <b>${last.sets.map(s => num(s.w) + ' × ' + s.r).join(' · ')}</b></div>` : ''}
+    <div class="card-h"><h3>${esc(ex ? ex.name : 'Gelöschte Übung')}<small>${esc(ex ? catName(ex.catId) : '')}</small></h3>${tgt}${ex ? `<button class="x hb" data-act="go-hist" data-ex="${esc(e.exId)}" data-from="training" aria-label="Verlauf von ${esc(ex.name)} anzeigen" title="Verlauf">${CHART_ICON}</button>` : ''}<button class="x" data-act="rm-entry" aria-label="Übung von diesem Tag entfernen">×</button></div>
+    ${last ? `<div class="last">Letztes Mal, ${esc(fmtShort(last.date))}: <b>${last.sets.map(s => num(s.w) + ' × ' + s.r).join(' · ')}</b></div>` : ''}
     <div class="steps">
-      <div class="stp"><label for="w-${esc(e.exId)}">Weight (kg)</label><div class="row"><button data-act="w-" aria-label="Decrease weight">−</button><input id="w-${esc(e.exId)}" data-f="w" inputmode="decimal" autocomplete="off" value="${esc(dr.w)}"><button data-act="w+" aria-label="Increase weight">+</button></div></div>
-      <div class="stp"><label for="r-${esc(e.exId)}">Reps</label><div class="row"><button data-act="r-" aria-label="Decrease reps">−</button><input id="r-${esc(e.exId)}" data-f="r" inputmode="numeric" autocomplete="off" value="${esc(dr.r)}"><button data-act="r+" aria-label="Increase reps">+</button></div></div>
+      <div class="stp"><label for="w-${esc(e.exId)}">Gewicht (kg)</label><div class="row"><button data-act="w-" aria-label="Gewicht verringern">−</button><input id="w-${esc(e.exId)}" data-f="w" inputmode="decimal" autocomplete="off" value="${esc(dr.w)}"><button data-act="w+" aria-label="Gewicht erhöhen">+</button></div></div>
+      <div class="stp"><label for="r-${esc(e.exId)}">Wiederholungen</label><div class="row"><button data-act="r-" aria-label="Wiederholungen verringern">−</button><input id="r-${esc(e.exId)}" data-f="r" inputmode="numeric" autocomplete="off" value="${esc(dr.r)}"><button data-act="r+" aria-label="Wiederholungen erhöhen">+</button></div></div>
     </div>
     <p class="err">${esc(S.errs[key] || '')}</p>
-    <div class="card-a"><button class="primary" data-act="save-set">${editing ? 'Update set' : 'Save set'}</button>${editing ? '<button class="danger" data-act="del-set">Delete</button><button class="ghost" data-act="cancel-edit">Cancel</button>' : '<button class="ghost" data-act="clear-draft">Clear</button>'}</div>
+    <div class="card-a"><button class="primary" data-act="save-set">${editing ? 'Satz ändern' : 'Satz speichern'}</button>${editing ? '<button class="danger" data-act="del-set">Löschen</button><button class="ghost" data-act="cancel-edit">Abbrechen</button>' : '<button class="ghost" data-act="clear-draft">Leeren</button>'}</div>
     ${e.sets.length ? `<ol class="sets">${setsHtml}</ol>` : ''}
   </article>`;
 }
 
-/* Sidebar */
+/* Seitenleiste */
 function sideHtml(scope, counter) {
   const sel = S.catSel[scope];
   const cats = S.cfg.categories.slice().sort(byName);
-  let h = `<aside class="side" aria-label="Categories"><button class="${sel === '__all' ? 'on' : ''}" data-act="side" data-scope="${scope}" data-cat="__all">All <span class="cnt">${counter(null)}</span></button>`;
+  const all = counter(null);
+  let h = `<aside class="side" aria-label="Kategorien"><button class="${sel === '__all' ? 'on' : ''}" data-act="side" data-scope="${scope}" data-cat="__all">Alle <span class="cnt">${all}</span></button>`;
   for (const c of cats) h += `<button class="${sel === c.id ? 'on' : ''}" data-act="side" data-scope="${scope}" data-cat="${esc(c.id)}">${esc(c.name)} <span class="cnt">${counter(c.id)}</span></button>`;
-  if (S.cfg.exercises.some(e => !catById(e.catId))) h += `<button class="${sel === '__none' ? 'on' : ''}" data-act="side" data-scope="${scope}" data-cat="__none">Uncategorised <span class="cnt">${counter('__none')}</span></button>`;
-  if (scope === 'exercises') h += `<button class="add" data-act="cat-add">+ Category</button>`;
+  if (S.cfg.exercises.some(e => !catById(e.catId))) h += `<button class="${sel === '__none' ? 'on' : ''}" data-act="side" data-scope="${scope}" data-cat="__none">Ohne Kategorie <span class="cnt">${counter('__none')}</span></button>`;
+  if (scope === 'uebungen') h += `<button class="add" data-act="cat-add">+ Kategorie</button>`;
   return h + '</aside>';
 }
 const inCat = (e, c) => c === '__all' || c === null ? true : c === '__none' ? !catById(e.catId) : e.catId === c;
 
-/* Exercises */
+/* Übungen */
 function renderExercises() {
-  const sel = S.catSel.exercises;
+  const sel = S.catSel.uebungen;
   const counter = c => S.cfg.exercises.filter(e => !e.archived && inCat(e, c)).length;
   const list = S.cfg.exercises.filter(e => inCat(e, sel)).sort(byName);
   const act = list.filter(e => !e.archived), arch = list.filter(e => e.archived);
   const cat = catById(sel);
-  const row = e => { const n = sessions(e.id).length; return `<div class="item-row"><button class="item${e.archived ? ' off' : ''}" data-act="edit-ex" data-ex="${esc(e.id)}"><span class="nm">${esc(e.name)}</span><span class="meta">${sel === '__all' ? esc(catName(e.catId)) + ' · ' : ''}Step ${num(e.step)} kg · ${plural(n, 'workout', 'workouts')}</span></button><button class="hist-btn" data-act="go-hist" data-ex="${esc(e.id)}" data-from="exercises" aria-label="Show history graph for ${esc(e.name)}" title="History">${CHART_ICON}</button></div>`; };
-  let c = `<div class="sh"><h2 class="h">${esc(cat ? cat.name : sel === '__none' ? 'Uncategorised' : 'All exercises')}</h2><button class="primary sm" data-act="ex-new">+ New exercise</button></div>`;
-  if (cat) c += `<div class="row-btns"><button class="ghost sm" data-act="cat-rename" data-cat="${esc(cat.id)}">Rename</button><button class="ghost sm" data-act="cat-del" data-cat="${esc(cat.id)}">Delete category</button></div>`;
-  c += act.length || arch.length ? `<div class="list">${act.map(row).join('')}${arch.length ? `<div class="grp">Hidden</div>${arch.map(row).join('')}` : ''}</div>` : `<p class="empty">No exercises here yet.</p>`;
-  return `<div class="split">${sideHtml('exercises', counter)}<section class="col">${c}</section></div>`;
+  const row = e => { const n = sessions(e.id).length; return `<div class="item-row"><button class="item${e.archived ? ' off' : ''}" data-act="edit-ex" data-ex="${esc(e.id)}"><span class="nm">${esc(e.name)}</span><span class="meta">${sel === '__all' ? esc(catName(e.catId)) + ' · ' : ''}Schritt ${num(e.step)} kg · ${n} Training${n === 1 ? '' : 's'}</span></button><button class="hist-btn" data-act="go-hist" data-ex="${esc(e.id)}" data-from="uebungen" aria-label="Verlauf von ${esc(e.name)} anzeigen" title="Verlauf">${CHART_ICON}</button></div>`; };
+  let c = `<div class="sh"><h2 class="h">${esc(cat ? cat.name : sel === '__none' ? 'Ohne Kategorie' : 'Alle Übungen')}</h2><button class="primary sm" data-act="ex-new">+ Neue Übung</button></div>`;
+  if (cat) c += `<div class="row-btns"><button class="ghost sm" data-act="cat-rename" data-cat="${esc(cat.id)}">Umbenennen</button><button class="ghost sm" data-act="cat-del" data-cat="${esc(cat.id)}">Kategorie löschen</button></div>`;
+  c += act.length || arch.length ? `<div class="list">${act.map(row).join('')}${arch.length ? `<div class="grp">Ausgeblendet</div>${arch.map(row).join('')}` : ''}</div>` : `<p class="empty">Hier gibt es noch keine Übungen.</p>`;
+  return `<div class="split">${sideHtml('uebungen', counter)}<section class="col">${c}</section></div>`;
 }
 
-/* Templates */
+/* Vorlagen */
 function renderTemplates() {
   const rot = S.cfg.rotation, tpls = S.cfg.templates, sg = suggest(today());
-  let h = `<section class="panel"><div class="sh"><h2>Rotation</h2>${sg ? `<span class="badge done">Up next: ${esc(sg.item.type === 'rest' ? 'Rest day' : tplName(sg.item.tplId))}</span>` : ''}</div>
-    <p class="hint">Each day the app suggests the template that comes after your last workout. A rest day counts as done once you've had a day without training. If you start a different template, it takes the slot that's currently up.</p>`;
-  h += rot.length ? `<ol class="rot">${rot.map((x, i) => `<li class="${x.type === 'rest' ? 'rest' : ''}${sg && sg.idx === i ? ' next' : ''}"><span class="n">${i + 1}</span><span class="nm">${x.type === 'rest' ? 'Rest day' : esc(tplName(x.tplId))}</span><button class="mini" data-act="rot-up" data-i="${i}" aria-label="Move up"${i === 0 ? ' disabled' : ''}>↑</button><button class="mini" data-act="rot-down" data-i="${i}" aria-label="Move down"${i === rot.length - 1 ? ' disabled' : ''}>↓</button><button class="mini" data-act="rot-rm" data-i="${i}" aria-label="Remove from rotation">×</button></li>`).join('')}</ol>`
-    : `<p class="empty">No rotation yet. Add templates and rest days in the order you train them.</p>`;
-  h += `<div class="field"><label for="rot-add">Add to rotation</label><select id="rot-add"><option value="">Choose …</option>${tpls.map(t => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('')}<option value="__rest">Rest day</option></select></div></section>`;
-  h += `<div class="sh"><h2 class="h">Templates</h2><button class="primary sm" data-act="tpl-new">+ New template</button></div>`;
-  h += tpls.length ? tpls.map(t => S.tplEdit === t.id ? tplEditorHtml(t) : tplCardHtml(t)).join('') : `<p class="empty">No templates yet.</p>`;
+  let h = `<section class="panel"><div class="sh"><h2>Rhythmus</h2>${sg ? `<span class="badge done">Als Nächstes: ${esc(sg.item.type === 'rest' ? 'Ruhetag' : tplName(sg.item.tplId))}</span>` : ''}</div>
+    <p class="hint">Die App schlägt jeden Tag die Vorlage vor, die nach deinem letzten Training dran ist. Ein Ruhetag gilt als erledigt, sobald du einen Tag nicht trainiert hast. Startest du eine andere Vorlage, zählt sie für den Platz, der gerade dran ist.</p>`;
+  h += rot.length ? `<ol class="rot">${rot.map((x, i) => `<li class="${x.type === 'rest' ? 'rest' : ''}${sg && sg.idx === i ? ' next' : ''}"><span class="n">${i + 1}</span><span class="nm">${x.type === 'rest' ? 'Ruhetag' : esc(tplName(x.tplId))}</span><button class="mini" data-act="rot-up" data-i="${i}" aria-label="Nach oben"${i === 0 ? ' disabled' : ''}>↑</button><button class="mini" data-act="rot-down" data-i="${i}" aria-label="Nach unten"${i === rot.length - 1 ? ' disabled' : ''}>↓</button><button class="mini" data-act="rot-rm" data-i="${i}" aria-label="Aus dem Rhythmus entfernen">×</button></li>`).join('')}</ol>`
+    : `<p class="empty">Noch kein Rhythmus. Füge Vorlagen und Ruhetage in der Reihenfolge hinzu, in der du trainierst.</p>`;
+  h += `<div class="field"><label for="rot-add">Zum Rhythmus hinzufügen</label><select id="rot-add"><option value="">Auswählen …</option>${tpls.map(t => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('')}<option value="__rest">Ruhetag</option></select></div></section>`;
+  h += `<div class="sh"><h2 class="h">Vorlagen</h2><button class="primary sm" data-act="tpl-new">+ Neue Vorlage</button></div>`;
+  h += tpls.length ? tpls.map(t => S.tplEdit === t.id ? tplEditorHtml(t) : tplCardHtml(t)).join('') : `<p class="empty">Noch keine Vorlagen.</p>`;
   return h;
 }
 function tplCardHtml(t) {
   const n = t.items.length, sets = t.items.reduce((a, i) => a + i.sets, 0);
-  return `<article class="card"><button class="tplrow" data-act="tpl-edit" data-tpl="${esc(t.id)}"><span class="nm">${esc(t.name)}</span><span class="meta">${plural(n, 'exercise', 'exercises')} · ${plural(sets, 'set', 'sets')}</span>${n ? `<span class="meta">${t.items.map(i => esc((exById(i.exId) || {}).name || '–')).join(' · ')}</span>` : '<span class="meta">Still empty: tap to edit</span>'}</button></article>`;
+  return `<article class="card"><button class="tplrow" data-act="tpl-edit" data-tpl="${esc(t.id)}"><span class="nm">${esc(t.name)}</span><span class="meta">${n} Übung${n === 1 ? '' : 'en'} · ${sets} Sätze</span>${n ? `<span class="meta">${t.items.map(i => esc((exById(i.exId) || {}).name || '–')).join(' · ')}</span>` : '<span class="meta">Noch leer: tippe zum Bearbeiten</span>'}</button></article>`;
 }
 function tplEditorHtml(t) {
-  const items = t.items.map((it, i) => `<li><span class="nm">${esc((exById(it.exId) || {}).name || 'Deleted exercise')}</span>
-      <span class="ms"><button class="mini" data-act="ti-sets-" data-i="${i}" aria-label="Fewer sets">−</button>${plural(it.sets, 'set', 'sets')}<button class="mini" data-act="ti-sets+" data-i="${i}" aria-label="More sets">+</button></span>
-      <button class="mini" data-act="ti-up" data-i="${i}" aria-label="Move up"${i === 0 ? ' disabled' : ''}>↑</button><button class="mini" data-act="ti-down" data-i="${i}" aria-label="Move down"${i === t.items.length - 1 ? ' disabled' : ''}>↓</button><button class="mini" data-act="ti-rm" data-i="${i}" aria-label="Remove">×</button></li>`).join('');
-  return `<article class="card" data-tpl="${esc(t.id)}"><div class="card-h"><h3>Edit template</h3><button class="primary sm" data-act="tpl-done">Done</button></div>
+  const items = t.items.map((it, i) => `<li><span class="nm">${esc((exById(it.exId) || {}).name || 'Gelöschte Übung')}</span>
+      <span class="ms"><button class="mini" data-act="ti-sets-" data-i="${i}" aria-label="Weniger Sätze">−</button>${it.sets} Sätze<button class="mini" data-act="ti-sets+" data-i="${i}" aria-label="Mehr Sätze">+</button></span>
+      <button class="mini" data-act="ti-up" data-i="${i}" aria-label="Nach oben"${i === 0 ? ' disabled' : ''}>↑</button><button class="mini" data-act="ti-down" data-i="${i}" aria-label="Nach unten"${i === t.items.length - 1 ? ' disabled' : ''}>↓</button><button class="mini" data-act="ti-rm" data-i="${i}" aria-label="Entfernen">×</button></li>`).join('');
+  return `<article class="card" data-tpl="${esc(t.id)}"><div class="card-h"><h3>Vorlage bearbeiten</h3><button class="primary sm" data-act="tpl-done">Fertig</button></div>
     <div class="pad"><div class="field"><label for="tpl-name">Name</label><input id="tpl-name" data-tpl="${esc(t.id)}" value="${esc(t.name)}" autocomplete="off"></div></div>
-    ${t.items.length ? `<ol class="rot" style="border-radius:0;border-left:0;border-right:0">${items}</ol>` : '<p class="empty pad">No exercises in this template yet.</p>'}
-    <div class="card-a" style="padding-top:12px"><button class="ghost" data-act="ti-add">+ Exercise</button><button class="danger" data-act="tpl-del">Delete template</button></div></article>`;
+    ${t.items.length ? `<ol class="rot" style="border-radius:0;border-left:0;border-right:0">${items}</ol>` : '<p class="empty pad">Noch keine Übungen in dieser Vorlage.</p>'}
+    <div class="card-a" style="padding-top:12px"><button class="ghost" data-act="ti-add">+ Übung</button><button class="danger" data-act="tpl-del">Vorlage löschen</button></div></article>`;
 }
 
-/* History */
+/* Verlauf */
 function renderHistory() {
-  const sel = S.catSel.history;
+  const sel = S.catSel.verlauf;
   const cnt = {}; for (const e of S.cfg.exercises) cnt[e.id] = sessions(e.id).length;
   const counter = c => S.cfg.exercises.filter(e => inCat(e, c) && cnt[e.id] > 0).length;
   const exs = S.cfg.exercises.filter(e => inCat(e, sel) && cnt[e.id] > 0).sort(byName);
@@ -601,30 +691,30 @@ function renderHistory() {
     S.histEx = d ? d.entries.find(e => e.sets.length).exId : (exs[0] && exs[0].id) || null;
   }
   let c = '';
-  if (!S.cfg.exercises.length) c = `<p class="empty">No exercises yet. Create them under "Exercises" or load the starter pack under "Data".</p>`;
+  if (!S.cfg.exercises.length) c = `<p class="empty">Noch keine Übungen. Lege sie unter „Übungen“ an oder lade unter „Daten“ das Startpaket.</p>`;
   else {
     const many = exs.length > 12;
     if (many) { const opts = exs.some(e => e.id === S.histEx) || !exById(S.histEx) ? exs : [exById(S.histEx), ...exs];
-      c += `<div class="field"><label for="hist-sel">Exercise</label><select id="hist-sel">${opts.map(e => `<option value="${esc(e.id)}"${e.id === S.histEx ? ' selected' : ''}>${esc(e.name)}</option>`).join('')}</select></div>`; }
-    else c += exs.length ? `<div class="chips" aria-label="Choose exercise">${exs.map(e => `<button class="${e.id === S.histEx ? 'on' : ''}" data-act="hist-ex" data-ex="${esc(e.id)}">${esc(e.name)}</button>`).join('')}</div>` : `<p class="empty">You haven't trained anything in this category yet.</p>`;
+      c += `<div class="field"><label for="hist-sel">Übung</label><select id="hist-sel">${opts.map(e => `<option value="${esc(e.id)}"${e.id === S.histEx ? ' selected' : ''}>${esc(e.name)}</option>`).join('')}</select></div>`; }
+    else c += exs.length ? `<div class="chips" aria-label="Übung wählen">${exs.map(e => `<button class="${e.id === S.histEx ? 'on' : ''}" data-act="hist-ex" data-ex="${esc(e.id)}">${esc(e.name)}</button>`).join('')}</div>` : `<p class="empty">In dieser Kategorie hast du noch nichts trainiert.</p>`;
     if (S.histEx && (sel === '__all' || exs.some(e => e.id === S.histEx))) c += histDetail(S.histEx);
   }
-  return `<div class="split">${sideHtml('history', counter)}<section class="col">${c}</section></div>`;
+  return `<div class="split">${sideHtml('verlauf', counter)}<section class="col">${c}</section></div>`;
 }
 function histDetail(exId) {
   const ex = exById(exId), ss = sessions(exId);
-  let h = S.histFrom === 'workout' ? `<button class="back" data-act="hist-back">← Back to workout</button>` : S.histFrom === 'exercises' ? `<button class="back" data-act="hist-back">← Back to exercises</button>` : '';
+  let h = S.histFrom === 'training' ? `<button class="back" data-act="hist-back">← Zurück zum Training</button>` : S.histFrom === 'uebungen' ? `<button class="back" data-act="hist-back">← Zurück zu den Übungen</button>` : '';
   h += `<h2 class="h">${esc(ex.name)}</h2>`;
-  if (!ss.length) return h + `<p class="empty">No entries for this exercise yet.</p>`;
+  if (!ss.length) return h + `<p class="empty">Noch keine Einträge für diese Übung.</p>`;
   const bE = ss.reduce((a, b) => b.e1rm > a.e1rm ? b : a), bW = ss.reduce((a, b) => b.maxW > a.maxW ? b : a);
   h += `<div class="tiles">
-    <div class="tile"><div class="l">Est. 1RM</div><div class="v">${num(bE.e1rm, 1)} <small>kg</small></div><div class="s">${esc(fmtTile(bE.date))}</div></div>
-    <div class="tile"><div class="l">Max weight</div><div class="v">${num(bW.maxW)} <small>kg</small></div><div class="s">${esc(fmtTile(bW.date))}</div></div>
-    <div class="tile"><div class="l">Workouts</div><div class="v">${ss.length}</div><div class="s">since ${esc(fmtTile(ss[ss.length - 1].date))}</div></div></div>`;
-  h += `<div class="seg" role="group" aria-label="Value shown in chart">${Object.entries(METRICS).map(([k, m]) => `<button class="${S.metric === k ? 'on' : ''}" data-act="metric" data-m="${k}">${m.label}</button>`).join('')}</div>`;
+    <div class="tile"><div class="l">1RM (gesch.)</div><div class="v">${num(bE.e1rm, 1)} <small>kg</small></div><div class="s">${esc(fmtTile(bE.date))}</div></div>
+    <div class="tile"><div class="l">Max. Gewicht</div><div class="v">${num(bW.maxW)} <small>kg</small></div><div class="s">${esc(fmtTile(bW.date))}</div></div>
+    <div class="tile"><div class="l">Trainings</div><div class="v">${ss.length}</div><div class="s">seit ${esc(fmtTile(ss[ss.length - 1].date))}</div></div></div>`;
+  h += `<div class="seg" role="group" aria-label="Wert im Graph">${Object.entries(METRICS).map(([k, m]) => `<button class="${S.metric === k ? 'on' : ''}" data-act="metric" data-m="${k}">${m.label}</button>`).join('')}</div>`;
   h += `<div class="chart" id="chart"></div>`;
-  h += `<p class="hint">Estimated 1RM uses the Epley formula, weight × (1 + reps ÷ 30), for the best set of the day. Volume is the sum of weight × reps. Tap a row to open that day.</p>`;
-  h += `<div class="tbl"><table><thead><tr><th>Date</th><th>Sets (kg × reps)</th><th class="num">1RM</th><th class="num wide">Max</th><th class="num wide">Volume</th></tr></thead><tbody>${ss.map(s => `<tr data-act="goto-day" data-date="${s.date}"><td>${fmtTbl(s.date)}</td><td>${s.sets.map(x => num(x.w) + '&nbsp;×&nbsp;' + x.r).join(' · ')}</td><td class="num">${num(s.e1rm, 1)}</td><td class="num wide">${num(s.maxW)}</td><td class="num wide">${num(s.vol, 0)}</td></tr>`).join('')}</tbody></table></div>`;
+  h += `<p class="hint">Geschätztes 1RM nach Epley: Gewicht × (1 + Wdh. ÷ 30), bester Satz des Tages. Volumen: Summe aus Gewicht × Wdh. Tippe auf eine Zeile, um den Tag zu öffnen.</p>`;
+  h += `<div class="tbl"><table><thead><tr><th>Datum</th><th>Sätze (kg × Wdh.)</th><th class="num">1RM</th><th class="num wide">Max.</th><th class="num wide">Volumen</th></tr></thead><tbody>${ss.map(s => `<tr data-act="goto-day" data-date="${s.date}"><td>${fmtTbl(s.date)}</td><td>${s.sets.map(x => num(x.w) + '&nbsp;×&nbsp;' + x.r).join(' · ')}</td><td class="num">${num(s.e1rm, 1)}</td><td class="num wide">${num(s.maxW)}</td><td class="num wide">${num(s.vol, 0)}</td></tr>`).join('')}</tbody></table></div>`;
   return h;
 }
 function niceTicks(min, max, n) {
@@ -640,7 +730,7 @@ function drawChart() {
   const wrap = $('#chart'); if (!wrap || !S.histEx) return;
   const m = METRICS[S.metric], ex = exById(S.histEx);
   const pts = sessions(S.histEx).slice().reverse().map(s => ({date:s.date, t:parseDs(s.date).getTime(), v:m.get(s), s})).filter(p => p.v > 0);
-  if (!pts.length) { wrap.innerHTML = '<p class="empty pad">No entries for this value yet.</p>'; return; }
+  if (!pts.length) { wrap.innerHTML = '<p class="empty pad">Für diesen Wert gibt es noch keine Einträge.</p>'; return; }
   const W = Math.max(280, Math.round(wrap.clientWidth - 8)), H = 240, L = 46, R = 22, T = 26, B = 30;
   let t0 = pts[0].t, t1 = pts[pts.length - 1].t;
   if (t1 - t0 < 864e5) { t0 -= 3 * 864e5; t1 += 3 * 864e5; }
@@ -649,7 +739,7 @@ function drawChart() {
   let g = '';
   for (const tk of ticks) { const y = Y(tk).toFixed(1); g += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y}" y2="${y}"/><text class="axis" x="${L - 8}" y="${y}" text-anchor="end" dominant-baseline="middle">${num(tk, 1)}</text>`; }
   const spanDays = (pts[pts.length - 1].t - pts[0].t) / 864e5;
-  const fx = p => parseDs(p.date).toLocaleDateString(LOCALE, spanDays > 300 ? {day:'numeric', month:'numeric', year:'2-digit'} : {day:'numeric', month:'short'});
+  const fx = p => parseDs(p.date).toLocaleDateString('de-DE', spanDays > 300 ? {day:'numeric', month:'numeric', year:'2-digit'} : {day:'numeric', month:'short'});
   const xl = pts.length === 1 ? [pts[0]] : (pts.length > 2 && W > 420 ? [pts[0], pts[Math.floor((pts.length - 1) / 2)], pts[pts.length - 1]] : [pts[0], pts[pts.length - 1]]);
   xl.forEach((p, i) => { const anc = xl.length === 1 ? 'middle' : i === 0 ? 'start' : i === xl.length - 1 ? 'end' : 'middle'; g += `<text class="axis" x="${X(p.t).toFixed(1)}" y="${H - 8}" text-anchor="${anc}">${esc(fx(p))}</text>`; });
   const line = pts.map((p, i) => (i ? 'L' : 'M') + X(p.t).toFixed(1) + ' ' + Y(p.v).toFixed(1)).join(' ');
@@ -659,7 +749,7 @@ function drawChart() {
   const lp = pts[pts.length - 1], lx = X(lp.t), ly = Y(lp.v);
   g += `<circle class="dot" cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="5.5"/><text class="endl" x="${lx.toFixed(1)}" y="${(ly - 12).toFixed(1)}" text-anchor="${lx > W - 70 ? 'end' : 'middle'}">${num(lp.v, m.dec)} ${m.unit}</text>`;
   g += `<line class="ch" id="ch" x1="0" x2="0" y1="${T}" y2="${H - B}" visibility="hidden"/><circle class="dot" id="chdot" r="6" visibility="hidden"/>`;
-  wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(m.label + ' for ' + ex.name + ', ' + plural(pts.length, 'workout', 'workouts'))}">${g}</svg><div class="tip"></div>`;
+  wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(m.label + ' für ' + ex.name + ', ' + pts.length + ' Trainings')}">${g}</svg><div class="tip"></div>`;
   const svg = wrap.querySelector('svg'), tip = wrap.querySelector('.tip'), ch = svg.querySelector('#ch'), cd = svg.querySelector('#chdot');
   const show = ev => {
     const r = svg.getBoundingClientRect(), px = (ev.clientX - r.left) * (W / r.width);
@@ -677,53 +767,60 @@ function drawChart() {
   const hide = () => { tip.style.display = 'none'; ch.setAttribute('visibility', 'hidden'); cd.setAttribute('visibility', 'hidden'); };
   svg.addEventListener('pointermove', show); svg.addEventListener('pointerdown', show); svg.addEventListener('pointerleave', hide);
 }
-let rsT; window.addEventListener('resize', () => { clearTimeout(rsT); rsT = setTimeout(() => { if (S.view === 'history') drawChart(); }, 150); });
+let rsT; window.addEventListener('resize', () => { clearTimeout(rsT); rsT = setTimeout(() => { if (S.view === 'verlauf') drawChart(); }, 150); });
 
-/* Data */
+/* Daten */
 function renderData() {
   const nDays = Object.keys(S.days).length, nSets = Object.values(S.days).reduce((a, d) => a + d.entries.reduce((b, e) => b + e.sets.length, 0), 0);
-  return `<section class="panel"><h2>Storage</h2><p class="hint">Your data is stored only on this device, in this browser, and the app works without internet. Download a backup now and then, especially before switching phones or clearing your browser data.</p><p class="hint">${plural(S.cfg.exercises.length, 'exercise', 'exercises')} · ${plural(S.cfg.templates.length, 'template', 'templates')} · ${plural(nDays, 'training day', 'training days')} · ${plural(nSets, 'set', 'sets')} · ${plural(Object.keys(S.weights).length, 'weigh-in', 'weigh-ins')}</p></section>
-  <section class="panel"><h2>Starter pack</h2><p class="hint">Adds your exercises, the templates Pull, Push, Legs, Upper, Lower and "Push (shoulder-friendly)", and the rotation Pull – Push – Legs – Rest – Upper – Lower. Anything you already have stays, and exercises or templates with the same name aren't added twice.</p>
-    <label class="check"><input type="checkbox" id="seed-hist" checked> Include the workouts from 6 to 11 November from your screenshots</label>
-    <div class="row-btns"><button class="ghost" data-act="seed">Load starter pack</button></div></section>
-  <section class="panel"><h2>Import from FitNotes</h2><p class="hint">Choose your FitNotes backup (.fitnotes) or a CSV file. A .fitnotes file brings in your workouts and your body weight. Exercises are matched by name, and missing ones are created with their category. For each day, the file replaces that exercise's sets and the weigh-in, so nothing gets duplicated. Reading a .fitnotes file needs a quick internet connection.</p>
-    <div class="field"><label for="csv-file">File (.fitnotes or .csv)</label><input type="file" id="csv-file"></div><p class="hint" id="imp-status"></p></section>
-  <section class="panel"><h2>Backup</h2><p class="hint">Saves all exercises, templates, workouts and weigh-ins. To restore, open the file or paste the text below.</p>
-    <div class="row-btns"><button class="primary" data-act="backup-download">Download backup</button><button class="ghost" data-act="backup-copy">Copy backup</button></div>
-    <div class="field"><label for="backup-file">Open backup file</label><input type="file" id="backup-file" accept=".json,application/json,text/plain"></div>
-    <div class="field"><label for="backup-in">Paste backup</label><textarea id="backup-in" spellcheck="false" placeholder='{"app":"trainingslog", …}'></textarea></div>
-    <div class="row-btns"><button class="danger" data-act="backup-restore">Restore and replace everything</button></div><p class="hint" id="bk-status"></p></section>`;
+  const where = STANDALONE
+    ? 'Deine Daten liegen nur auf diesem Gerät, in diesem Browser, und die App funktioniert auch ohne Internet. Lade ab und zu ein Backup herunter, vor allem vor einem Handywechsel oder bevor du die Browserdaten löschst.'
+    : Store.mode === 'db'
+    ? 'Deine Daten liegen in deinem Claude-Konto und sind nur für dich sichtbar, auch wenn du den Link teilst. Öffnest du die App am Handy und am Computer, ist überall derselbe Stand.'
+    : Store.mode === 'local'
+      ? 'Gerade wird nur in diesem Browser gespeichert. Öffne die App angemeldet über claude.ai, dann landen deine Daten in deinem Konto und sind auf allen Geräten gleich.'
+      : 'Verbinde mit deinem Speicher …';
+  return `<section class="panel"><h2>Speicher</h2><p class="hint">${where}</p><p class="hint">${S.cfg.exercises.length} Übungen · ${S.cfg.templates.length} Vorlagen · ${nDays} Trainingstage · ${nSets} Sätze · ${Object.keys(S.weights).length} Gewichtsmessungen</p></section>
+  <section class="panel"><h2>Startpaket</h2><p class="hint">Legt deine Übungen, die Vorlagen Pull, Push, Legs, Upper, Lower und „Push (Schulter schonen)“ sowie den Rhythmus Pull – Push – Legs – Ruhetag – Upper – Lower an. Was du schon hast, bleibt erhalten, gleichnamige Übungen und Vorlagen werden nicht doppelt angelegt.</p>
+    <label class="check"><input type="checkbox" id="seed-hist" checked> Trainings vom 6. bis 11. November aus deinen Screenshots übernehmen</label>
+    <div class="row-btns"><button class="ghost" data-act="seed">Startpaket laden</button></div></section>
+  <section class="panel"><h2>Aus FitNotes importieren</h2><p class="hint">Wähle deine FitNotes-Sicherung (.fitnotes) oder eine CSV-Datei. Aus der .fitnotes-Datei kommen deine Trainings und dein Körpergewicht. Übungen werden über den Namen zugeordnet, fehlende werden mit ihrer Kategorie angelegt. Für jeden Tag ersetzt die Datei die Sätze der jeweiligen Übung und die Gewichtsmessung, doppelte Einträge entstehen also nicht. Zum Einlesen einer .fitnotes-Datei braucht die App kurz Internet.</p>
+    <div class="field"><label for="csv-file">Datei (.fitnotes oder .csv)</label><input type="file" id="csv-file"></div><p class="hint" id="imp-status"></p></section>
+  <section class="panel"><h2>Backup</h2><p class="hint">Sichert alle Übungen, Vorlagen, Trainings und Gewichtsmessungen. Füge ihn zum Wiederherstellen unten ein.</p>
+    <div class="row-btns">${STANDALONE ? '<button class="primary" data-act="backup-download">Backup herunterladen</button>' : ''}<button class="ghost" data-act="backup-copy">Backup kopieren</button></div>
+    ${STANDALONE ? '<div class="field"><label for="backup-file">Backup-Datei öffnen</label><input type="file" id="backup-file" accept=".json,application/json,text/plain"></div>' : ''}
+    <div class="field"><label for="backup-in">Backup einfügen</label><textarea id="backup-in" spellcheck="false" placeholder='{"app":"trainingslog", …}'></textarea></div>
+    <div class="row-btns"><button class="danger" data-act="backup-restore">Wiederherstellen und alles ersetzen</button></div><p class="hint" id="bk-status"></p></section>`;
 }
 
-/* ---------- Dialogs ---------- */
+/* ---------- Modals ---------- */
 const Modal = {
   open(html) { const m = $('#modal'); m.innerHTML = `<div class="backdrop" data-act="modal-close"></div><div class="sheet" role="dialog" aria-modal="true">${html}</div>`; m.hidden = false; document.body.classList.add('noscroll'); const f = m.querySelector('input:not([type=checkbox]),select'); if (f && matchMedia('(pointer:fine)').matches) f.focus(); },
   close() { const m = $('#modal'); m.hidden = true; m.innerHTML = ''; document.body.classList.remove('noscroll'); S.picker = null; S.exEdit = null; if (S.cfResolve) { S.cfResolve(false); S.cfResolve = null; } }
 };
 function confirmDlg(text, ok, danger) {
   return new Promise(res => {
-    Modal.open(`<h2 class="h">Are you sure?</h2><p>${esc(text)}</p><div class="row-btns"><button class="${danger ? 'danger' : 'primary'}" data-act="cf-yes">${esc(ok)}</button><button class="ghost" data-act="cf-no">Cancel</button></div>`);
+    Modal.open(`<h2 class="h">Bist du sicher?</h2><p>${esc(text)}</p><div class="row-btns"><button class="${danger ? 'danger' : 'primary'}" data-act="cf-yes">${esc(ok)}</button><button class="ghost" data-act="cf-no">Abbrechen</button></div>`);
     S.cfResolve = res;
   });
 }
 function textDlg(title, label, value, ok, cb) {
   S.textCb = cb;
-  Modal.open(`<div class="sheet-h"><h2 class="h">${esc(title)}</h2><button class="ghost sm" data-act="modal-close">Cancel</button></div><div class="field"><label for="td-in">${esc(label)}</label><input id="td-in" value="${esc(value || '')}" autocomplete="off"></div><p class="err" id="td-err"></p><div class="row-btns"><button class="primary" data-act="td-ok">${esc(ok)}</button></div>`);
+  Modal.open(`<div class="sheet-h"><h2 class="h">${esc(title)}</h2><button class="ghost sm" data-act="modal-close">Abbrechen</button></div><div class="field"><label for="td-in">${esc(label)}</label><input id="td-in" value="${esc(value || '')}" autocomplete="off"></div><p class="err" id="td-err"></p><div class="row-btns"><button class="primary" data-act="td-ok">${esc(ok)}</button></div>`);
 }
 function openPicker(title, cb, exclude) {
   S.picker = {cat:'__all', q:'', cb, exclude:exclude || []};
-  Modal.open(`<div class="sheet-h"><h2 class="h">${esc(title)}</h2><button class="ghost sm" data-act="modal-close">Close</button></div>
-    <div class="field"><label for="pk-q">Search</label><input id="pk-q" type="search" autocomplete="off" placeholder="e.g. Curls"></div>
+  Modal.open(`<div class="sheet-h"><h2 class="h">${esc(title)}</h2><button class="ghost sm" data-act="modal-close">Schließen</button></div>
+    <div class="field"><label for="pk-q">Suchen</label><input id="pk-q" type="search" autocomplete="off" placeholder="z. B. Curls"></div>
     <div class="chips" id="pk-cats"></div><div class="list" id="pk-list"></div>
-    <button class="ghost" data-act="pk-new">+ Create new exercise</button>`);
+    <button class="ghost" data-act="pk-new">+ Neue Übung anlegen</button>`);
   renderPicker();
 }
 function renderPicker() {
   const p = S.picker; if (!p) return;
-  $('#pk-cats').innerHTML = [['__all', 'All'], ...S.cfg.categories.slice().sort(byName).map(c => [c.id, c.name])].map(([id, n]) => `<button class="${p.cat === id ? 'on' : ''}" data-act="pk-cat" data-cat="${esc(id)}">${esc(n)}</button>`).join('');
+  $('#pk-cats').innerHTML = [['__all', 'Alle'], ...S.cfg.categories.slice().sort(byName).map(c => [c.id, c.name])].map(([id, n]) => `<button class="${p.cat === id ? 'on' : ''}" data-act="pk-cat" data-cat="${esc(id)}">${esc(n)}</button>`).join('');
   const q = low(p.q);
   const list = S.cfg.exercises.filter(e => !e.archived && inCat(e, p.cat) && (!q || low(e.name).includes(q))).sort(byName);
-  $('#pk-list').innerHTML = list.length ? list.map(e => `<button class="item" data-act="pk-pick" data-ex="${esc(e.id)}"><span class="nm">${esc(e.name)}</span><span class="meta">${esc(catName(e.catId))}${p.exclude.includes(e.id) ? ' · already added' : ''}</span></button>`).join('') : '<p class="empty pad">No exercise found. Create it below.</p>';
+  $('#pk-list').innerHTML = list.length ? list.map(e => `<button class="item" data-act="pk-pick" data-ex="${esc(e.id)}"><span class="nm">${esc(e.name)}</span><span class="meta">${esc(catName(e.catId))}${p.exclude.includes(e.id) ? ' · schon dabei' : ''}</span></button>`).join('') : '<p class="empty pad">Keine Übung gefunden. Lege sie unten neu an.</p>';
 }
 function editExercise(id, opts) {
   opts = opts || {};
@@ -731,16 +828,16 @@ function editExercise(id, opts) {
   const catId = ex ? (catById(ex.catId) ? ex.catId : '__new') : (opts.catId && catById(opts.catId) ? opts.catId : (cats[0] ? cats[0].id : '__new'));
   const hist = ex ? sessions(ex.id).length : 0;
   S.exEdit = {id, after:opts.after || null};
-  Modal.open(`<div class="sheet-h"><h2 class="h">${ex ? 'Edit exercise' : 'New exercise'}</h2><button class="ghost sm" data-act="modal-close">Cancel</button></div>
+  Modal.open(`<div class="sheet-h"><h2 class="h">${ex ? 'Übung bearbeiten' : 'Neue Übung'}</h2><button class="ghost sm" data-act="modal-close">Abbrechen</button></div>
     <div class="field"><label for="ex-name">Name</label><input id="ex-name" value="${esc(ex ? ex.name : opts.name || '')}" autocomplete="off"></div>
-    <div class="field"><label for="ex-cat">Category</label><select id="ex-cat">${cats.map(c => `<option value="${esc(c.id)}"${c.id === catId ? ' selected' : ''}>${esc(c.name)}</option>`).join('')}<option value="__new"${catId === '__new' ? ' selected' : ''}>New category …</option></select></div>
-    <div class="field" id="ex-newcat-f"${catId === '__new' ? '' : ' hidden'}><label for="ex-newcat">Name of the new category</label><input id="ex-newcat" autocomplete="off"></div>
-    <div class="field"><label for="ex-step">Weight step for − and + (kg)</label><input id="ex-step" inputmode="decimal" value="${ex ? fmtIn(ex.step) : '2.5'}"><div class="chips mt">${[0.5, 1, 1.25, 2, 2.5, 5].map(v => `<button type="button" data-act="ex-stepchip" data-v="${v}">${num(v)}</button>`).join('')}</div></div>
-    <div class="field"><label for="ex-rstep">Rep step</label><input id="ex-rstep" inputmode="numeric" value="${ex ? ex.repStep : 1}"></div>
+    <div class="field"><label for="ex-cat">Kategorie</label><select id="ex-cat">${cats.map(c => `<option value="${esc(c.id)}"${c.id === catId ? ' selected' : ''}>${esc(c.name)}</option>`).join('')}<option value="__new"${catId === '__new' ? ' selected' : ''}>Neue Kategorie …</option></select></div>
+    <div class="field" id="ex-newcat-f"${catId === '__new' ? '' : ' hidden'}><label for="ex-newcat">Name der neuen Kategorie</label><input id="ex-newcat" autocomplete="off"></div>
+    <div class="field"><label for="ex-step">Gewichtsschritt bei − und + (kg)</label><input id="ex-step" inputmode="decimal" value="${ex ? fmtIn(ex.step) : '2,5'}"><div class="chips mt">${[0.5, 1, 1.25, 2, 2.5, 5].map(v => `<button type="button" data-act="ex-stepchip" data-v="${v}">${num(v)}</button>`).join('')}</div></div>
+    <div class="field"><label for="ex-rstep">Wiederholungsschritt</label><input id="ex-rstep" inputmode="numeric" value="${ex ? ex.repStep : 1}"></div>
     <p class="err" id="ex-err"></p>
-    <div class="row-btns"><button class="primary" data-act="ex-save">Save</button>${ex ? (hist ? `<button class="ghost" data-act="ex-archive">${ex.archived ? 'Show again' : 'Hide'}</button>` : `<button class="danger" data-act="ex-delete">Delete</button>`) : ''}</div>
-    ${ex ? `<button class="ghost" data-act="go-hist" data-ex="${esc(ex.id)}" data-from="exercises">View history graph</button>` : ''}
-    ${ex && hist ? `<p class="hint">This exercise has ${plural(hist, 'workout', 'workouts')} in your history. Hidden exercises disappear from the lists, but their history is kept.</p>` : ''}`);
+    <div class="row-btns"><button class="primary" data-act="ex-save">Speichern</button>${ex ? (hist ? `<button class="ghost" data-act="ex-archive">${ex.archived ? 'Wieder einblenden' : 'Ausblenden'}</button>` : `<button class="danger" data-act="ex-delete">Löschen</button>`) : ''}</div>
+    ${ex ? `<button class="ghost" data-act="go-hist" data-ex="${esc(ex.id)}" data-from="uebungen">Verlauf als Graph ansehen</button>` : ''}
+    ${ex && hist ? `<p class="hint">Diese Übung hat ${hist} Training${hist === 1 ? '' : 's'} im Verlauf. Ausgeblendete Übungen verschwinden aus der Auswahl, ihr Verlauf bleibt erhalten.</p>` : ''}`);
 }
 function getOrCreateCat(name) {
   const f = S.cfg.categories.find(c => low(c.name) === low(name));
@@ -749,31 +846,31 @@ function getOrCreateCat(name) {
 }
 function findEx(name) { const n = low(name); return S.cfg.exercises.find(e => low(e.name) === n || (e.aliases || []).some(a => low(a) === n)); }
 
-/* ---------- Starter pack ---------- */
+/* ---------- Startpaket ---------- */
 const SEED = {
-  cats: ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Forearms', 'Legs', 'Abs', 'Cardio'],
+  cats: ['Brust', 'Rücken', 'Schultern', 'Bizeps', 'Trizeps', 'Unterarme', 'Beine', 'Bauch', 'Cardio'],
   ex: [
-    ['T-Bar Machine', 'Back', 2.5], ['Lat Pulldown', 'Back', 2.5], ['Dumbbell Shrugs', 'Back', 2, ['Dumbbell Shrug', 'Kurzhantel Shrugs']],
-    ['Rear Delt Cable Fly', 'Shoulders', 2.5], ['Lateral Raise Machine', 'Shoulders', 2.5, ['Open later Raise Machine']], ['Overhead Press', 'Shoulders', 2.5],
-    ['Dumbbell Curls (arm on bench)', 'Biceps', 2, ['Rühls', 'Kurzhantel Curls (Bank)']], ['Hammer Curls', 'Biceps', 2, ['Dumbbell Hammer Curl']], ['Cable Wrist Curls', 'Forearms', 2.5, ['TOP CABLE', 'Unterarm Curls (Kabel)']],
-    ['Incline Smith', 'Chest', 2.5], ['Seated Machine Fly', 'Chest', 2.5], ['Incline Dumbbell Press', 'Chest', 2, ['Incline Dumbbell Bench Press', 'Kurzhantel Schrägbank']],
-    ['V-Bar Pushdown', 'Triceps', 2.5, ['V-Bar Push Down']], ['Overhead Triceps Extension (V-Bar)', 'Triceps', 2.5, ['Cable Overhead Triceps Extension', 'Overhead Trizeps Extension (V-Bar)']], ['Machine Pushdown', 'Triceps', 2.5, ['MASCHINE PUSH DOWN', 'Maschine Push Down', 'Maschinen Pushdown']],
-    ['Hack Squats', 'Legs', 2.5], ['Hip Thrust', 'Legs', 2.5], ['Leg Extension Machine', 'Legs', 2.5], ['Adductors', 'Legs', 2.5, ['Adduction Machine', 'Adduktoren']], ['Abductors', 'Legs', 2.5, ['Abduction Machine', 'Abduktoren']], ['Standing Calf Raise', 'Legs', 2.5, ['Standing Calf Raise Machine']],
-    ['Cable Crunch', 'Abs', 2.5], ['Woodchoppers', 'Abs', 2.5]
+    ['T-Bar Machine', 'Rücken', 2.5], ['Lat Pulldown', 'Rücken', 2.5], ['Kurzhantel Shrugs', 'Rücken', 2, ['Dumbbell Shrug', 'Dumbbell Shrugs']],
+    ['Rear Delt Cable Fly', 'Schultern', 2.5], ['Lateral Raise Machine', 'Schultern', 2.5, ['Open later Raise Machine']], ['Overhead Press', 'Schultern', 2.5],
+    ['Kurzhantel Curls (Bank)', 'Bizeps', 2, ['Rühls', 'Dumbbell Curls (arm on bench)']], ['Hammer Curls', 'Bizeps', 2, ['Dumbbell Hammer Curl']], ['Unterarm Curls (Kabel)', 'Unterarme', 2.5, ['TOP CABLE', 'Cable Wrist Curls']],
+    ['Incline Smith', 'Brust', 2.5], ['Seated Machine Fly', 'Brust', 2.5], ['Kurzhantel Schrägbank', 'Brust', 2, ['Incline Dumbbell Bench Press', 'Incline Dumbbell Press']],
+    ['V-Bar Pushdown', 'Trizeps', 2.5, ['V-Bar Push Down']], ['Overhead Trizeps Extension (V-Bar)', 'Trizeps', 2.5, ['Cable Overhead Triceps Extension', 'Overhead Triceps Extension (V-Bar)']], ['Maschinen Pushdown', 'Trizeps', 2.5, ['MASCHINE PUSH DOWN', 'Maschine Push Down', 'Machine Pushdown']],
+    ['Hack Squats', 'Beine', 2.5], ['Hip Thrust', 'Beine', 2.5], ['Leg Extension Machine', 'Beine', 2.5], ['Adduktoren', 'Beine', 2.5, ['Adduction Machine', 'Adductors']], ['Abduktoren', 'Beine', 2.5, ['Abduction Machine', 'Abductors']], ['Standing Calf Raise', 'Beine', 2.5, ['Standing Calf Raise Machine']],
+    ['Cable Crunch', 'Bauch', 2.5], ['Woodchoppers', 'Bauch', 2.5]
   ],
   tpl: [
-    ['Pull', [['T-Bar Machine', 2], ['Lat Pulldown', 2], ['Rear Delt Cable Fly', 2], ['Dumbbell Curls (arm on bench)', 3], ['Hammer Curls', 2], ['Dumbbell Shrugs', 2], ['Cable Wrist Curls', 2]]],
-    ['Push', [['Incline Smith', 2], ['Seated Machine Fly', 2], ['Lateral Raise Machine', 2], ['Overhead Press', 2], ['V-Bar Pushdown', 2], ['Overhead Triceps Extension (V-Bar)', 2]]],
-    ['Legs', [['Hack Squats', 2], ['Hip Thrust', 2], ['Leg Extension Machine', 2], ['Adductors', 2], ['Abductors', 2], ['Standing Calf Raise', 2], ['Cable Crunch', 1], ['Woodchoppers', 1]]],
+    ['Pull', [['T-Bar Machine', 2], ['Lat Pulldown', 2], ['Rear Delt Cable Fly', 2], ['Kurzhantel Curls (Bank)', 3], ['Hammer Curls', 2], ['Kurzhantel Shrugs', 2], ['Unterarm Curls (Kabel)', 2]]],
+    ['Push', [['Incline Smith', 2], ['Seated Machine Fly', 2], ['Lateral Raise Machine', 2], ['Overhead Press', 2], ['V-Bar Pushdown', 2], ['Overhead Trizeps Extension (V-Bar)', 2]]],
+    ['Legs', [['Hack Squats', 2], ['Hip Thrust', 2], ['Leg Extension Machine', 2], ['Adduktoren', 2], ['Abduktoren', 2], ['Standing Calf Raise', 2], ['Cable Crunch', 1], ['Woodchoppers', 1]]],
     ['Upper', []], ['Lower', []],
-    ['Push (shoulder-friendly)', [['Incline Dumbbell Press', 2], ['Seated Machine Fly', 2], ['Lateral Raise Machine', 3], ['V-Bar Pushdown', 3]]]
+    ['Push (Schulter schonen)', [['Kurzhantel Schrägbank', 2], ['Seated Machine Fly', 2], ['Lateral Raise Machine', 3], ['V-Bar Pushdown', 3]]]
   ],
   rot: ['Pull', 'Push', 'Legs', null, 'Upper', 'Lower'],
   days: [
     ['2026-11-06', 'Legs', [['Hack Squats', [[40, 5], [40, 4]]], ['Hip Thrust', [[90, 10], [90, 10]]], ['Leg Extension Machine', [[105, 7], [105, 7]]], ['Cable Crunch', [[57.5, 10]]], ['Woodchoppers', [[25, 12]]]]],
-    ['2026-11-09', 'Pull', [['T-Bar Machine', [[85, 10], [85, 10]]], ['Lat Pulldown', [[93, 8], [93, 7]]], ['Rear Delt Cable Fly', [[25, 10], [30, 7]]], ['Dumbbell Curls (arm on bench)', [[14, 8], [14, 7], [14, 6]]]]],
+    ['2026-11-09', 'Pull', [['T-Bar Machine', [[85, 10], [85, 10]]], ['Lat Pulldown', [[93, 8], [93, 7]]], ['Rear Delt Cable Fly', [[25, 10], [30, 7]]], ['Kurzhantel Curls (Bank)', [[14, 8], [14, 7], [14, 6]]]]],
     ['2026-11-10', 'Push', [['Incline Smith', [[50, 4], [50, 4]]], ['Seated Machine Fly', [[77, 10], [77, 8]]], ['Lateral Raise Machine', [[60, 8], [60, 6]]], ['Overhead Press', [[61, 7]]]]],
-    ['2026-11-11', null, [['Overhead Press', [[61, 8], [61, 6]]], ['V-Bar Pushdown', [[45, 6], [42.5, 8]]], ['Machine Pushdown', [[109, 10], [117, 7]]]]]
+    ['2026-11-11', null, [['Overhead Press', [[61, 8], [61, 6]]], ['V-Bar Pushdown', [[45, 6], [42.5, 8]]], ['Maschinen Pushdown', [[109, 10], [117, 7]]]]]
   ]
 };
 async function loadSeed(withHist) {
@@ -791,6 +888,7 @@ async function loadSeed(withHist) {
     tplIds[name] = t.id;
   }
   if (!S.cfg.rotation.length) S.cfg.rotation = SEED.rot.map(n => n ? {type:'t', tplId:tplIds[n]} : {type:'rest'});
+  saveCfg();
   const dates = [];
   if (withHist) {
     for (const [date, tpl, list] of SEED.days) {
@@ -803,14 +901,13 @@ async function loadSeed(withHist) {
       dates.push(date);
     }
   }
-  saveCfg();
   S.skipOnboard = true;
   render();
-  await writeDaysNow(dates);
-  toast('Starter pack loaded.');
+  if (dates.length) { try { await writeDaysNow(dates); } catch (e) { onWriteError(e); } }
+  toast('Startpaket geladen.');
 }
 
-/* ---------- FitNotes import ---------- */
+/* ---------- FitNotes-Import ---------- */
 function parseCSV(text) {
   text = text.replace(/^﻿/, '');
   const first = text.split(/\r?\n/)[0] || '';
@@ -833,30 +930,31 @@ function parseDateAny(s) {
   m = s.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})/); if (m) return m[1] + '-' + pad(+m[2]) + '-' + pad(+m[3]);
   return null;
 }
+const FN_CATS = {abs:'Bauch', back:'Rücken', biceps:'Bizeps', cardio:'Cardio', chest:'Brust', forearms:'Unterarme', legs:'Beine', shoulders:'Schultern', triceps:'Trizeps'};
 function seedMatch(name) {
   const n = low(name), s = SEED.ex.find(x => (x[3] || []).some(a => low(a) === n));
   return s ? (findEx(s[0]) || (s[3] || []).map(findEx).find(Boolean) || null) : null;
 }
 
-const WEIGHT_VIEW = 'weight';
-const catFor = rc => rc || 'Other';
+const WEIGHT_VIEW = 'gewicht';
+const catFor = rc => FN_CATS[low(rc)] || rc || 'Sonstige';
 const WT = {
-  loc:LOCALE, title:'Body weight', chip:'Weight', date:'Date', weight:'Weight (kg)', less:'Decrease weight', more:'Increase weight',
-  note:'Note (optional)', notePh:'e.g. 1k surplus', save:'Save', update:'Update', del:'Delete',
-  saved:'Weight saved.', deleted:'Weigh-in deleted.', errW:'Enter a weight between 20 and 400 kg.', errD:'Choose a valid date.',
-  avg7:'7-day avg', until:'to', chgL:'Change / week', vsPrev:'vs. the 7 days before', needMore:'Needs weigh-ins from 2 weeks', last:'Last weigh-in',
-  rangeL:'Chart range', ranges:{'4w':'4 weeks', '3m':'3 months', '1y':'1 year', 'all':'All'},
-  lgEntry:'Weigh-in', lgAvg:'7-day avg', chartL:'Body weight with 7-day average',
-  hint:'The 7-day average is the mean of your weigh-ins over the last 7 days. It smooths out the daily ups and downs from water and food. Change per week compares it with the 7 days before.',
-  weeks:'Weeks', kw:'Wk', period:'Dates', avg:'Avg kg', chg:'± prev. week', n:'Weigh-ins',
-  gapNote:'* compared with the last earlier week in which you weighed yourself.',
-  all:'All weigh-ins', empty:'No weigh-ins yet. Add your first one above, or import your FitNotes backup under "Data".',
-  delQ:d => `Delete the weigh-in from ${d}?`,
-  errSqlLoad:'Reading a .fitnotes file needs an internet connection once. Try again while online.',
-  errNotFitnotes:"That isn't a FitNotes backup.", errEmpty:'The file has no entries.',
-  errCols:"The columns weren't recognised. The file needs date, exercise, weight and reps, or a body weight column.",
-  errNone:'No sets and no body weight were found in the file.',
-  impDone:r => `Imported ${plural(r.days, 'training day', 'training days')} with ${plural(r.sets, 'set', 'sets')}${r.created ? `, ${plural(r.created, 'new exercise', 'new exercises')} created` : ''}${r.weights ? `, ${plural(r.weights, 'weigh-in', 'weigh-ins')}` : ''}.`
+  loc:'de-DE', title:'Körpergewicht', chip:'Gewicht', date:'Datum', weight:'Gewicht (kg)', less:'Gewicht verringern', more:'Gewicht erhöhen',
+  note:'Notiz (optional)', notePh:'z. B. 1k Überschuss', save:'Speichern', update:'Aktualisieren', del:'Löschen',
+  saved:'Gewicht gespeichert.', deleted:'Messung gelöscht.', errW:'Gib ein Gewicht zwischen 20 und 400 kg ein.', errD:'Wähle ein gültiges Datum.',
+  avg7:'Ø 7 Tage', until:'bis', chgL:'Veränderung / Woche', vsPrev:'vs. 7 Tage davor', needMore:'Braucht Messungen aus 2 Wochen', last:'Letzte Messung',
+  rangeL:'Zeitraum im Graph', ranges:{'4w':'4 Wochen', '3m':'3 Monate', '1y':'1 Jahr', 'all':'Alles'},
+  lgEntry:'Messung', lgAvg:'Ø 7 Tage', chartL:'Körpergewicht mit 7-Tage-Durchschnitt',
+  hint:'Ø 7 Tage ist der Durchschnitt deiner Messungen der letzten 7 Tage. Er glättet die täglichen Schwankungen durch Wasser und Essen. Die Veränderung pro Woche vergleicht ihn mit den 7 Tagen davor.',
+  weeks:'Wochen', kw:'KW', period:'Zeitraum', avg:'Ø kg', chg:'± Vorwoche', n:'Messungen',
+  gapNote:'* verglichen mit der letzten Woche davor, in der du dich gewogen hast.',
+  all:'Alle Messungen', empty:'Noch keine Messungen. Trag oben deine erste ein oder importiere dein FitNotes-Backup unter „Daten“.',
+  delQ:d => `Messung vom ${d} löschen?`,
+  errSqlLoad:'Zum Einlesen einer .fitnotes-Datei braucht die App einmal Internet. Versuch es mit Verbindung noch einmal.',
+  errNotFitnotes:'Das ist keine FitNotes-Sicherung.', errEmpty:'Die Datei enthält keine Einträge.',
+  errCols:'Die Spalten wurden nicht erkannt. Gebraucht werden Datum, Übung, Gewicht und Wiederholungen oder eine Spalte mit Körpergewicht.',
+  errNone:'In der Datei wurden keine Sätze und kein Körpergewicht gefunden.',
+  impDone:r => `Importiert: ${r.days} Trainingstage mit ${r.sets} Sätzen${r.created ? `, ${r.created} neue Übungen angelegt` : ''}${r.weights ? `, ${r.weights} Gewichtsmessungen` : ''}.`
 };
 /* ---------- Body weight ---------- */
 const SQLJS_BASE = window.__SQLJS_BASE__ || 'https://cdn.jsdelivr.net/npm/sql.js@1.15.2/dist/';
@@ -947,7 +1045,7 @@ function drawWeightChart() {
   if (pts.length > 1) g += `<path class="ln" d="${pts.map((p, i) => (i ? 'L' : 'M') + X(p.t).toFixed(1) + ' ' + Y(p.a).toFixed(1)).join(' ')}"/>`;
   const lp = pts[pts.length - 1], lx = X(lp.t), ly = Y(lp.a);
   const above = ly - 12 > T, ty = above ? ly - 12 : ly + 20;
-  g += `<circle class="dot" cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="5.5"/><text class="endl" x="${lx.toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="${lx > W - 80 ? 'end' : 'middle'}">avg ${num(lp.a, 1)} kg</text>`;
+  g += `<circle class="dot" cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="5.5"/><text class="endl" x="${lx.toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="${lx > W - 80 ? 'end' : 'middle'}">Ø ${num(lp.a, 1)} kg</text>`;
   g += `<line class="ch" id="wch" x1="0" x2="0" y1="${T}" y2="${H - B}" visibility="hidden"/><circle class="dot" id="wchdot" r="6" visibility="hidden"/>`;
   wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(WT.chartL)}">${g}</svg><div class="tip"></div>`;
   const svg = wrap.querySelector('svg'), tip = wrap.querySelector('.tip'), ch = svg.querySelector('#wch'), cd = svg.querySelector('#wchdot');
@@ -1098,7 +1196,7 @@ async function applyImport(items, weights, onProg) {
 let toastT;
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 3200); }
 
-/* ---------- Actions ---------- */
+/* ---------- Aktionen ---------- */
 function cardCtx(el) {
   const card = el.closest('.card[data-ex]'); if (!card) return null;
   const exId = card.dataset.ex, key = S.date + '|' + exId, day = S.days[S.date];
@@ -1125,10 +1223,10 @@ document.addEventListener('click', async ev => {
     case 'start-tpl': startTemplate(S.date, el.dataset.tpl, el.dataset.rot != null ? parseInt(el.dataset.rot, 10) : null); break;
     case 'pick-tpl': {
       const day = S.days[S.date];
-      Modal.open(`<div class="sheet-h"><h2 class="h">Choose template</h2><button class="ghost sm" data-act="modal-close">Cancel</button></div>
-        <div class="list">${S.cfg.templates.map(t => `<button class="item" data-act="pick-tpl-go" data-tpl="${esc(t.id)}"><span class="nm">${esc(t.name)}</span><span class="meta">${plural(t.items.length, 'exercise', 'exercises')}</span></button>`).join('')}</div>
-        ${day && day.tplId ? '<button class="ghost" data-act="untag-day">Train without a template</button>' : ''}
-        <p class="hint">Exercises that already have saved sets stay on this day.</p>`);
+      Modal.open(`<div class="sheet-h"><h2 class="h">Vorlage wählen</h2><button class="ghost sm" data-act="modal-close">Abbrechen</button></div>
+        <div class="list">${S.cfg.templates.map(t => `<button class="item" data-act="pick-tpl-go" data-tpl="${esc(t.id)}"><span class="nm">${esc(t.name)}</span><span class="meta">${t.items.length} Übungen</span></button>`).join('')}</div>
+        ${day && day.tplId ? '<button class="ghost" data-act="untag-day">Ohne Vorlage trainieren</button>' : ''}
+        <p class="hint">Übungen mit bereits gespeicherten Sätzen bleiben an diesem Tag erhalten.</p>`);
       break;
     }
     case 'pick-tpl-go': Modal.close(); startTemplate(S.date, el.dataset.tpl, null); break;
@@ -1137,12 +1235,12 @@ document.addEventListener('click', async ev => {
       const d = S.days[S.date], t = d && tplById(d.tplId); if (!t) return;
       t.items = d.entries.map(e => { const old = t.items.find(x => x.exId === e.exId); return {exId:e.exId, sets:old ? old.sets : Math.max(1, Math.min(20, e.sets.length || 2))}; });
       d.entries.forEach(e => { e.target = t.items.find(x => x.exId === e.exId).sets; });
-      saveCfg(); saveDay(S.date); render(); toast('Template "' + t.name + '" updated.');
+      saveCfg(); saveDay(S.date); render(); toast('Vorlage „' + t.name + '“ aktualisiert.');
       break;
     }
     case 'add-ex': {
       const day = S.days[S.date];
-      openPicker('Add exercise', exId => {
+      openPicker('Übung hinzufügen', exId => {
         const d = ensureDay(S.date);
         if (!d.entries.some(e => e.exId === exId)) d.entries.push({exId, target:0, sets:[]});
         saveDay(S.date); Modal.close(); render();
@@ -1164,8 +1262,8 @@ document.addEventListener('click', async ev => {
     case 'save-set': {
       const c = cardCtx(el); if (!c || !c.entry) return;
       const w = parseNum(c.card.querySelector('[data-f="w"]').value), rv = String(c.card.querySelector('[data-f="r"]').value).trim(), r = parseInt(rv, 10);
-      if (!(w >= 0)) return setErr(c, 'Enter a weight, or 0 for bodyweight.');
-      if (!/^\d+$/.test(rv) || !(r >= 1)) return setErr(c, 'Enter at least 1 rep as a whole number.');
+      if (!(w >= 0)) return setErr(c, 'Gib ein Gewicht ein, 0 für Körpergewicht.');
+      if (!/^\d+$/.test(rv) || !(r >= 1)) return setErr(c, 'Gib mindestens 1 Wiederholung als ganze Zahl ein.');
       const s = {w:r2(w), r};
       if (c.dr.edit != null && c.entry.sets[c.dr.edit]) c.entry.sets[c.dr.edit] = s; else c.entry.sets.push(s);
       c.dr.edit = null; c.dr.w = fmtIn(s.w); c.dr.r = String(s.r); delete S.errs[c.key];
@@ -1183,7 +1281,7 @@ document.addEventListener('click', async ev => {
     case 'del-set': { const c = cardCtx(el); if (!c || c.dr.edit == null) return; c.entry.sets.splice(c.dr.edit, 1); c.dr.edit = null; saveDay(S.date); render(); break; }
     case 'rm-entry': {
       const c = cardCtx(el); if (!c || !c.entry) return;
-      if (c.entry.sets.length && !(await confirmDlg(`Remove "${c.ex ? c.ex.name : 'exercise'}" with ${plural(c.entry.sets.length, 'set', 'sets')} from this day?`, 'Remove', true))) return;
+      if (c.entry.sets.length && !(await confirmDlg(`„${c.ex ? c.ex.name : 'Übung'}“ mit ${c.entry.sets.length} Sätzen von diesem Tag entfernen?`, 'Entfernen', true))) return;
       Modal.close();
       const d = S.days[S.date]; d.entries = d.entries.filter(e => e.exId !== c.exId); delete S.drafts[c.key];
       saveDay(S.date); render();
@@ -1192,48 +1290,49 @@ document.addEventListener('click', async ev => {
     case 'modal-close': Modal.close(); break;
     case 'cf-yes': if (S.cfResolve) { const r = S.cfResolve; S.cfResolve = null; r(true); } break;
     case 'cf-no': Modal.close(); break;
-    case 'td-ok': { const v = $('#td-in').value.trim(); if (!v) { $('#td-err').textContent = 'Enter a name.'; return; } const cb = S.textCb; S.textCb = null; const err = cb(v); if (err) { $('#td-err').textContent = err; S.textCb = cb; return; } Modal.close(); render(); break; }
+    case 'td-ok': { const v = $('#td-in').value.trim(); if (!v) { $('#td-err').textContent = 'Gib einen Namen ein.'; return; } const cb = S.textCb; S.textCb = null; const err = cb(v); if (err) { $('#td-err').textContent = err; S.textCb = cb; return; } Modal.close(); render(); break; }
     case 'pk-cat': S.picker.cat = el.dataset.cat; renderPicker(); break;
     case 'pk-pick': { const cb = S.picker.cb; cb(el.dataset.ex); break; }
     case 'pk-new': { const p = S.picker; editExercise(null, {name:p.q, catId:p.cat, after:p.cb}); break; }
-    case 'side': S.catSel[el.dataset.scope] = el.dataset.cat; if (el.dataset.scope === 'history') { const f = S.cfg.exercises.filter(e => inCat(e, el.dataset.cat) && sessions(e.id).length); if (f.length && !f.some(e => e.id === S.histEx)) S.histEx = f.sort(byName)[0].id; } render(); break;
-    case 'cat-add': textDlg('New category', 'Name', '', 'Create', v => { if (S.cfg.categories.some(c => low(c.name) === low(v))) return 'That category already exists.'; const id = getOrCreateCat(v); S.catSel.exercises = id; saveCfg(); }); break;
-    case 'cat-rename': { const c = catById(el.dataset.cat); if (!c) return; textDlg('Rename category', 'Name', c.name, 'Save', v => { if (S.cfg.categories.some(x => x.id !== c.id && low(x.name) === low(v))) return 'That category already exists.'; c.name = v; saveCfg(); }); break; }
+    case 'side': S.catSel[el.dataset.scope] = el.dataset.cat; if (el.dataset.scope === 'verlauf') { const f = S.cfg.exercises.filter(e => inCat(e, el.dataset.cat) && sessions(e.id).length); if (f.length && !f.some(e => e.id === S.histEx)) S.histEx = f.sort(byName)[0].id; } render(); break;
+    case 'cat-add': textDlg('Neue Kategorie', 'Name', '', 'Anlegen', v => { if (S.cfg.categories.some(c => low(c.name) === low(v))) return 'Diese Kategorie gibt es schon.'; const id = getOrCreateCat(v); S.catSel.uebungen = id; saveCfg(); }); break;
+    case 'cat-rename': { const c = catById(el.dataset.cat); if (!c) return; textDlg('Kategorie umbenennen', 'Name', c.name, 'Speichern', v => { if (S.cfg.categories.some(x => x.id !== c.id && low(x.name) === low(v))) return 'Diese Kategorie gibt es schon.'; c.name = v; saveCfg(); }); break; }
     case 'cat-del': {
       const c = catById(el.dataset.cat); if (!c) return;
-      if (S.cfg.exercises.some(e => e.catId === c.id)) { toast('Move or delete the exercises in "' + c.name + '" first.'); return; }
-      if (!(await confirmDlg(`Delete the category "${c.name}"?`, 'Delete', true))) return;
-      Modal.close(); S.cfg.categories = S.cfg.categories.filter(x => x.id !== c.id); S.catSel.exercises = '__all'; saveCfg(); render();
+      if (S.cfg.exercises.some(e => e.catId === c.id)) { toast('Verschiebe oder lösche zuerst die Übungen in „' + c.name + '“.'); return; }
+      if (!(await confirmDlg(`Kategorie „${c.name}“ löschen?`, 'Löschen', true))) return;
+      Modal.close(); S.cfg.categories = S.cfg.categories.filter(x => x.id !== c.id); S.catSel.uebungen = '__all'; saveCfg(); render();
       break;
     }
-    case 'ex-new': editExercise(null, {catId:S.catSel.exercises}); break;
+    case 'ex-new': editExercise(null, {catId:S.catSel.uebungen}); break;
     case 'edit-ex': editExercise(el.dataset.ex); break;
     case 'ex-stepchip': $('#ex-step').value = fmtIn(+el.dataset.v); break;
     case 'ex-save': {
       const err = m => { $('#ex-err').textContent = m; };
-      const name = $('#ex-name').value.trim(); if (!name) return err('Enter a name.');
+      const name = $('#ex-name').value.trim(); if (!name) return err('Gib einen Namen ein.');
       const id = S.exEdit && S.exEdit.id;
-      if (S.cfg.exercises.some(e => e.id !== id && low(e.name) === low(name))) return err('An exercise with this name already exists.');
+      if (S.cfg.exercises.some(e => e.id !== id && low(e.name) === low(name))) return err('Eine Übung mit diesem Namen gibt es schon.');
       let catId = $('#ex-cat').value;
-      if (catId === '__new') { const cn = $('#ex-newcat').value.trim(); if (!cn) return err('Enter a name for the new category.'); catId = getOrCreateCat(cn); }
-      const step = parseNum($('#ex-step').value); if (!(step > 0)) return err('The weight step must be greater than 0.');
-      const rs = parseInt($('#ex-rstep').value, 10); if (!(rs >= 1)) return err('The rep step must be at least 1.');
+      if (catId === '__new') { const cn = $('#ex-newcat').value.trim(); if (!cn) return err('Gib einen Namen für die neue Kategorie ein.'); catId = getOrCreateCat(cn); }
+      const step = parseNum($('#ex-step').value); if (!(step > 0)) return err('Der Gewichtsschritt muss größer als 0 sein.');
+      const rs = parseInt($('#ex-rstep').value, 10); if (!(rs >= 1)) return err('Der Wiederholungsschritt muss mindestens 1 sein.');
       let nid = id;
       if (id) Object.assign(exById(id), {name, catId, step:r2(step), repStep:rs});
       else { nid = newId(); S.cfg.exercises.push({id:nid, name, catId, step:r2(step), repStep:rs, aliases:[], archived:false}); }
       saveCfg();
       const after = S.exEdit && S.exEdit.after;
       Modal.close();
-      if (after) after(nid); else { toast(id ? 'Exercise saved.' : 'Exercise created.'); render(); }
+      if (after) after(nid); else { toast(id ? 'Übung gespeichert.' : 'Übung angelegt.'); render(); }
       break;
     }
-    case 'ex-archive': { const ex = exById(S.exEdit.id); ex.archived = !ex.archived; saveCfg(); Modal.close(); render(); toast(ex.archived ? 'Exercise hidden.' : 'Exercise shown again.'); break; }
+    case 'ex-archive': { const ex = exById(S.exEdit.id); ex.archived = !ex.archived; saveCfg(); Modal.close(); render(); toast(ex.archived ? 'Übung ausgeblendet.' : 'Übung wieder eingeblendet.'); break; }
     case 'ex-delete': {
       const id = S.exEdit.id;
       S.cfg.exercises = S.cfg.exercises.filter(e => e.id !== id);
       S.cfg.templates.forEach(t => { t.items = t.items.filter(x => x.exId !== id); });
-      Object.values(S.days).filter(d => d.entries.some(e => e.exId === id)).forEach(d => { d.entries = d.entries.filter(e => e.exId !== id); saveDay(d.date); });
-      saveCfg(); Modal.close(); render(); toast('Exercise deleted.');
+      const touched = Object.values(S.days).filter(d => d.entries.some(e => e.exId === id));
+      touched.forEach(d => { d.entries = d.entries.filter(e => e.exId !== id); saveDay(d.date); });
+      saveCfg(); Modal.close(); render(); toast('Übung gelöscht.');
       break;
     }
     case 'hist-ex': S.histEx = el.dataset.ex; render(); break;
@@ -1242,22 +1341,22 @@ document.addEventListener('click', async ev => {
       if (!$('#modal').hidden) Modal.close();
       S.histEx = id; S.histFrom = el.dataset.from || null;
       const ex = exById(id);
-      S.catSel.history = sessions(id).length && catById(ex.catId) ? ex.catId : '__all';
-      if (location.hash === '#history') render(); else location.hash = '#history';
+      S.catSel.verlauf = sessions(id).length && catById(ex.catId) ? ex.catId : '__all';
+      if (location.hash === '#verlauf') render(); else location.hash = '#verlauf';
       window.scrollTo(0, 0);
       break;
     }
-    case 'hist-back': { const to = S.histFrom === 'exercises' ? '#exercises' : '#workout'; S.histFrom = null; location.hash = to; break; }
+    case 'hist-back': { const to = S.histFrom === 'uebungen' ? '#uebungen' : '#training'; S.histFrom = null; location.hash = to; break; }
     case 'metric': S.metric = el.dataset.m; render(); break;
-    case 'goto-day': S.date = el.dataset.date; if (location.hash === '#workout') render(); else location.hash = '#workout'; window.scrollTo(0, 0); break;
+    case 'goto-day': S.date = el.dataset.date; if (location.hash === '#training') render(); else location.hash = '#training'; window.scrollTo(0, 0); break;
     case 'rot-up': case 'rot-down': { const r = S.cfg.rotation, j = a === 'rot-up' ? i - 1 : i + 1; if (j < 0 || j >= r.length) return; [r[i], r[j]] = [r[j], r[i]]; saveCfg(); render(); break; }
     case 'rot-rm': S.cfg.rotation.splice(i, 1); saveCfg(); render(); break;
-    case 'tpl-new': { const t = {id:newId(), name:'New template', items:[]}; S.cfg.templates.push(t); S.tplEdit = t.id; saveCfg(); render(); const n = $('#tpl-name'); if (n) { n.focus(); n.select(); } break; }
+    case 'tpl-new': { const t = {id:newId(), name:'Neue Vorlage', items:[]}; S.cfg.templates.push(t); S.tplEdit = t.id; saveCfg(); render(); const n = $('#tpl-name'); if (n) { n.focus(); n.select(); } break; }
     case 'tpl-edit': S.tplEdit = el.dataset.tpl; render(); break;
-    case 'tpl-done': { const t = tplById(S.tplEdit); if (t && !t.name.trim()) { t.name = 'Template'; saveCfg(); } S.tplEdit = null; render(); break; }
+    case 'tpl-done': { const t = tplById(S.tplEdit); if (t && !t.name.trim()) { t.name = 'Vorlage'; saveCfg(); } S.tplEdit = null; render(); break; }
     case 'tpl-del': {
       const t = tplById(S.tplEdit); if (!t) return;
-      if (!(await confirmDlg(`Delete the template "${t.name}"? It will also be removed from the rotation. Your workouts are kept.`, 'Delete', true))) return;
+      if (!(await confirmDlg(`Vorlage „${t.name}“ löschen? Sie wird auch aus dem Rhythmus entfernt. Deine Trainings bleiben erhalten.`, 'Löschen', true))) return;
       Modal.close();
       S.cfg.templates = S.cfg.templates.filter(x => x.id !== t.id); S.cfg.rotation = S.cfg.rotation.filter(x => x.tplId !== t.id); S.tplEdit = null;
       saveCfg(); render();
@@ -1268,33 +1367,37 @@ document.addEventListener('click', async ev => {
     case 'ti-rm': { const t = tplById(S.tplEdit); t.items.splice(i, 1); saveCfg(); render(); break; }
     case 'ti-add': {
       const t = tplById(S.tplEdit); if (!t) return;
-      openPicker('Add exercise to template', exId => { const tt = tplById(S.tplEdit); if (tt && !tt.items.some(x => x.exId === exId)) tt.items.push({exId, sets:2}); saveCfg(); Modal.close(); render(); }, t.items.map(x => x.exId));
+      openPicker('Übung zur Vorlage', exId => { const tt = tplById(S.tplEdit); if (tt && !tt.items.some(x => x.exId === exId)) tt.items.push({exId, sets:2}); saveCfg(); Modal.close(); render(); }, t.items.map(x => x.exId));
       break;
     }
     case 'backup-download': {
       const txt = JSON.stringify({app:'trainingslog', v:1, exported:new Date().toISOString(), cfg:S.cfg, days:S.days, weights:S.weights});
       const url = URL.createObjectURL(new Blob([txt], {type:'application/json'}));
-      const dl = document.createElement('a'); dl.href = url; dl.download = 'training-log-backup-' + today() + '.json';
+      const dl = document.createElement('a'); dl.href = url; dl.download = 'trainingslog-backup-' + today() + '.json';
       document.body.appendChild(dl); dl.click(); dl.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
-      toast('Downloading backup.');
+      toast('Backup wird heruntergeladen.');
       break;
     }
     case 'backup-copy': {
       const txt = JSON.stringify({app:'trainingslog', v:1, exported:new Date().toISOString(), cfg:S.cfg, days:S.days, weights:S.weights});
-      try { await navigator.clipboard.writeText(txt); toast('Backup copied to the clipboard.'); }
-      catch (e) { const ta = $('#backup-in'); ta.value = txt; ta.focus(); ta.select(); $('#bk-status').textContent = "Copying didn't work automatically. The text is selected below, copy it by hand."; }
+      try { await navigator.clipboard.writeText(txt); toast('Backup in die Zwischenablage kopiert.'); }
+      catch (e) { const ta = $('#backup-in'); ta.value = txt; ta.focus(); ta.select(); $('#bk-status').textContent = 'Kopieren ging nicht automatisch. Der Text ist unten markiert, kopiere ihn von Hand.'; }
       break;
     }
     case 'backup-restore': {
       const st = $('#bk-status'); let o;
-      try { o = JSON.parse($('#backup-in').value); } catch (e) { st.textContent = "That isn't a valid backup. Paste the complete copied text."; return; }
-      if (!o || o.app !== 'trainingslog' || !o.cfg) { st.textContent = "That isn't a backup from this app."; return; }
-      if (!(await confirmDlg('All current exercises, templates and workouts will be replaced by the backup.', 'Replace', true))) return;
+      try { o = JSON.parse($('#backup-in').value); } catch (e) { st.textContent = 'Das ist kein gültiges Backup. Füge den kompletten kopierten Text ein.'; return; }
+      if (!o || o.app !== 'trainingslog' || !o.cfg) { st.textContent = 'Das ist kein gültiges Backup dieser App.'; return; }
+      if (!(await confirmDlg('Alle aktuellen Übungen, Vorlagen und Trainings werden durch das Backup ersetzt.', 'Ersetzen', true))) return;
       Modal.close();
+      const old = Object.keys(S.days);
       S.cfg = normCfg(o.cfg); S.days = {}; S.weights = o.weights ? normWeights(o.weights) : (S.weights || {}); S.wDraft = null;
       for (const k in (o.days || {})) { if (/^\d{4}-\d{2}-\d{2}$/.test(k)) { const d = normDay(o.days[k], k); if (!isEmptyDay(d)) S.days[k] = d; } }
-      S.drafts = {}; S.skipOnboard = true;
-      Store.cacheLocal(); render(); toast('Backup restored.');
+      saveCfg(); render();
+      const all = [...new Set([...old, ...Object.keys(S.days)])].sort();
+      try { await writeDaysNow(all, (k, n) => { const s = $('#bk-status'); if (s) s.textContent = `Speichere ${k} von ${n} Tagen …`; }); toast('Backup wiederhergestellt.'); }
+      catch (e) { onWriteError(e); }
+      render();
       break;
     }
   }
@@ -1314,18 +1417,18 @@ document.addEventListener('change', async ev => {
   else if (t.id === 'rot-add' && t.value) { S.cfg.rotation.push(t.value === '__rest' ? {type:'rest'} : {type:'t', tplId:t.value}); saveCfg(); render(); }
   else if (t.id === 'ex-cat') { $('#ex-newcat-f').hidden = t.value !== '__new'; }
   else if (t.id === 'backup-file' && t.files && t.files[0]) {
-    try { $('#backup-in').value = await t.files[0].text(); $('#bk-status').textContent = 'Backup loaded. Tap "Restore and replace everything" to apply it.'; }
-    catch (e) { $('#bk-status').textContent = "The file couldn't be read."; }
+    try { $('#backup-in').value = await t.files[0].text(); $('#bk-status').textContent = 'Backup geladen. Tippe auf „Wiederherstellen und alles ersetzen“, um es zu übernehmen.'; }
+    catch (e) { $('#bk-status').textContent = 'Die Datei konnte nicht gelesen werden.'; }
   }
-  else if (t.id === 'tpl-name' && !t.value.trim()) { const tp = tplById(t.dataset.tpl); if (tp) { tp.name = 'Template'; t.value = 'Template'; saveCfg(); } }
+  else if (t.id === 'tpl-name' && !t.value.trim()) { const tp = tplById(t.dataset.tpl); if (tp) { tp.name = 'Vorlage'; t.value = 'Vorlage'; saveCfg(); } }
   else if (t.id === 'csv-file' && t.files && t.files[0]) {
-    const st = $('#imp-status'); st.textContent = 'Reading file …';
+    const st = $('#imp-status'); st.textContent = 'Lese Datei …';
     try {
-      const res = await importFile(t.files[0]);
+      const res = await importFile(t.files[0], (k, n) => { const s = $('#imp-status'); if (s) s.textContent = `Speichere ${k} von ${n} Tagen …`; });
       S.skipOnboard = true; render();
       const s2 = $('#imp-status'); if (s2) s2.textContent = WT.impDone(res);
-      toast('FitNotes import finished.');
-    } catch (e) { const s = $('#imp-status'); if (s) s.textContent = (e && e.message) || "The import didn't work."; }
+      toast('FitNotes-Import abgeschlossen.');
+    } catch (e) { const s = $('#imp-status'); if (s) s.textContent = (e && e.message) || 'Der Import hat nicht geklappt.'; if (e && e.code) onWriteError(e); }
   }
 });
 document.addEventListener('keydown', ev => {
@@ -1336,11 +1439,11 @@ document.addEventListener('keydown', ev => {
 });
 
 /* ---------- Navigation ---------- */
-const VIEWS = ['workout', 'history', 'exercises', 'templates', 'data', WEIGHT_VIEW];
-function fromHash() { const h = location.hash.slice(1); S.view = VIEWS.includes(h) ? h : 'workout'; }
-window.addEventListener('hashchange', () => { fromHash(); if (S.view === WEIGHT_VIEW) S.wDraft = null; S.tplEdit = null; if (S.view !== 'history') S.histFrom = null; render(); window.scrollTo(0, 0); });
-window.addEventListener('online', setSync); window.addEventListener('offline', setSync);
+const VIEWS = ['training', 'verlauf', 'uebungen', 'vorlagen', 'daten', WEIGHT_VIEW];
+function fromHash() { const h = location.hash.slice(1); S.view = VIEWS.includes(h) ? h : 'training'; }
+window.addEventListener('hashchange', () => { fromHash(); if (S.view === WEIGHT_VIEW) S.wDraft = null; S.tplEdit = null; if (S.view !== 'verlauf') S.histFrom = null; render(); window.scrollTo(0, 0); });
 fromHash();
+window.addEventListener('online', setSync); window.addEventListener('offline', setSync);
 Store.init();
 </script>
 </body>
